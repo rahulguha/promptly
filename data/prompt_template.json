@@ -1,0 +1,32 @@
+[
+  {
+    "id": "47a13c92-c1bc-4acb-9e60-e1dac8eeadd6",
+    "persona_id": "323a1004-1526-4ee9-b9bc-3ba5cfbdc9b8",
+    "template": "User is a {{user_role_display}} and wants LLM to play the role of {{llm_role_display}}. Please review this {{language}} code for {{focus}}: {{code}}",
+    "variables": [
+      "language",
+      "focus",
+      "code",
+      "user_role_display",
+      "llm_role_display"
+    ]
+  },
+  {
+    "id": "9273379f-ec9d-41fe-8347-94692d5a6139",
+    "persona_id": "323a1004-1526-4ee9-b9bc-3ba5cfbdc9b8",
+    "template": "User is a High School Student and wants LLM to play the role of Patient High School Teacher. Please review this {{language}} code for {{focus}}: {{code}}",
+    "variables": ["language", "focus", "code"]
+  },
+  {
+    "id": "0ecf87ff-0c4f-4268-97b7-6ececfa24a9d",
+    "persona_id": "323a1004-1526-4ee9-b9bc-3ba5cfbdc9b8",
+    "template": "User is a High School Student and wants LLM to play the role of Patient High School Teacher. Please review this {{language}} code for {{focus}}: {{code}}",
+    "variables": ["language", "focus", "code"]
+  },
+  {
+    "id": "7407b2d4-1448-40cb-a628-dc5775aa3268",
+    "persona_id": "323a1004-1526-4ee9-b9bc-3ba5cfbdc9b8",
+    "template": "User is a High School Student and wants LLM to play the role of Patient High School Teacher. Please teach for {{grade}} grade.",
+    "variables": ["grade"]
+  }
+]

@@ -3,64 +3,104 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 
+	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/rahulguha/promptly/internal/api"
-	"github.com/rahulguha/promptly/internal/storage"
+	"github.com/rahulguha/promptly/internal/routes"
 	"github.com/rahulguha/promptly/internal/storage/jsonstore"
 )
 
 var cfgFile string
 
-func main() {
-	var rootCmd = &cobra.Command{
-		Use:   "promptly",
-		Short: "Promptly - a prompt management API",
-		Run: func(cmd *cobra.Command, args []string) {
-			startServer()
-		},
-	}
-
-	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is config.yaml)")
-
-	if err := rootCmd.Execute(); err != nil {
-		log.Fatal(err)
-	}
+// rootCmd represents the base command when called without any subcommands
+var rootCmd = &cobra.Command{
+	Use:   "promptly",
+	Short: "A prompt management and API server",
+	Long:  `Promptly is a CLI application for managing prompts with a built-in API server.`,
 }
 
+// serveCmd represents the serve command
+var serveCmd = &cobra.Command{
+	Use:   "serve",
+	Short: "Start the API server",
+	Long:  `Start the HTTP API server for managing prompts.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		startServer()
+	},
+}
+
+func init() {
+	cobra.OnInitialize(initConfig)
+
+	// Add serve command to root
+	rootCmd.AddCommand(serveCmd)
+
+	// Global flags
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.config.yaml)")
+
+	// Serve command flags
+	serveCmd.Flags().StringP("port", "p", "8080", "Port to run the server on")
+	viper.BindPFlag("port", serveCmd.Flags().Lookup("port"))
+
+	serveCmd.Flags().StringP("data", "d", "data/prompts.json", "Path to data file")
+	viper.BindPFlag("data", serveCmd.Flags().Lookup("data"))
+}
+
+// initConfig reads in config file and ENV variables if set.
 func initConfig() {
 	if cfgFile != "" {
+		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
 	} else {
-		viper.SetConfigName("config")
-		viper.SetConfigType("yaml")
+		// Find home directory.
+		home, err := os.UserHomeDir()
+		cobra.CheckErr(err)
+
+		// Search config in home directory with name ".promptly" (without extension).
+		viper.AddConfigPath(home)
 		viper.AddConfigPath(".")
+		viper.SetConfigType("yaml")
+		viper.SetConfigName(".promptly")
 	}
 
-	if err := viper.ReadInConfig(); err != nil {
-		log.Fatalf("Error reading config: %v", err)
+	viper.AutomaticEnv() // read in environment variables that match
+
+	// If a config file is found, read it in.
+	if err := viper.ReadInConfig(); err == nil {
+		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
 	}
 }
 
 func startServer() {
-	var store storage.StorageProvider
+	// Get configuration from flags/config
+	port := viper.GetString("port")
+	dataPath := viper.GetString("data")
 
-	switch viper.GetString("storage.provider") {
-	case "json":
-		path := viper.GetString("storage.path")
-		s, err := jsonstore.New(path)
-		if err != nil {
-			log.Fatalf("failed to init storage: %v", err)
-		}
-		store = s
-	default:
-		log.Fatal("unknown storage provider")
+	// Initialize storage and handler
+	store, err := jsonstore.NewFileStorage(dataPath)
+	if err != nil {
+		log.Fatalf("Failed to initialize storage: %v", err)
 	}
+	handler := &routes.Handler{Store: store}
 
-	port := viper.GetInt("server.port")
-	router := api.NewRouter(store)
-	log.Printf("Promptly API running on :%d", port)
-	log.Fatal(router.Listen(port))
+	// Setup Gin router
+	r := gin.Default()
+	routes.RegisterRoutes(r, handler)
+
+	// Start server
+	fmt.Printf("Starting Promptly server on port %s\n", port)
+	fmt.Printf("Using data file: %s\n", dataPath)
+
+	if err := r.Run(":" + port); err != nil {
+		log.Fatal("Failed to start server:", err)
+	}
+}
+
+func main() {
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }

@@ -1,0 +1,9 @@
+[
+  {
+    "id": "b0a01f59-954b-4cc9-bbb3-fbc72ec001e8",
+    "user_role": "developer",
+    "llm_role": "code_reviewer",
+    "template": "Please review this {{language}} code for {{focus}}: {{code}}",
+    "variables": ["language", "focus", "code"]
+  }
+]
