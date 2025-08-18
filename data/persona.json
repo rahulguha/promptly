@@ -1,30 +1,32 @@
 [
   {
     "persona_id": "323a1004-1526-4ee9-b9bc-3ba5cfbdc9b8",
-    "user_role": "high_schooler",
     "user_role_display": "High School Student at 9th grade",
-    "llm_role": "high_school_teacher",
     "llm_role_display": "Patient High School Teacher"
   },
   {
     "persona_id": "e44f89bf-dbd9-4609-b5d3-56ec4fe67a0c",
-    "user_role": "high_schooler",
     "user_role_display": "High School Student",
-    "llm_role": "mock_tester",
     "llm_role_display": "Mock Tester who generates Questions"
   },
   {
     "persona_id": "f27738a8-c2d9-4342-92ff-4514933107dc",
-    "user_role": "high_schooler",
     "user_role_display": "High School Student",
-    "llm_role": "hard_tester",
     "llm_role_display": "Hard High School Tester"
   },
   {
     "persona_id": "235658ed-f107-4e2a-836b-88ac3d7f75c2",
-    "user_role": "college_student",
     "user_role_display": "College Student",
-    "llm_role": "college_prof",
     "llm_role_display": "College Professor"
+  },
+  {
+    "persona_id": "2d989125-7e4b-4f09-b833-836cca653103",
+    "user_role_display": "College Student",
+    "llm_role_display": "College Buddy"
+  },
+  {
+    "persona_id": "dfabb304-12fb-4d2f-b854-84f8651efd3a",
+    "user_role_display": "High School Student at 9th grade",
+    "llm_role_display": "Peer Tutor"
   }
 ]

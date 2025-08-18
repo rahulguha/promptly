@@ -7,9 +7,7 @@
 	let showForm = false;
 	let editingPersona: Persona | null = null;
 	let newPersona = {
-		user_role: '',
 		user_role_display: '',
-		llm_role: '',
 		llm_role_display: ''
 	};
 	
@@ -17,29 +15,24 @@
 	let showLLMRoleFields = false;
 	
 	$: userRoleOptions = uniqueUserRoles.map(role => {
-		const persona = personas.find(p => p.user_role === role);
 		return {
 			value: role,
-			display: persona?.user_role_display || role,
-			meta: `Role: ${role}`,
-			user_role: role,
-			llm_role: 'user'
+			display: role,
+			meta: `Role: ${role}`
 		};
 	});
 	
-	$: llmRoleOptions = uniqueLLMRoles.map(role => {
-		const persona = personas.find(p => p.llm_role === role);
-		return {
-			value: role,
-			display: persona?.llm_role_display || role,
-			meta: `Role: ${role}`,
-			user_role: 'assistant', 
-			llm_role: role
-		};
-	});
+	$: llmRoleOptions = newPersona.user_role_display ? 
+		uniqueLLMRoles.map(role => {
+			return {
+				value: role,
+				display: role,
+				meta: `Role: ${role}`
+			};
+		}) : [];
 	
-	$: uniqueUserRoles = [...new Set(personas.map(p => p.user_role))];
-	$: uniqueLLMRoles = [...new Set(personas.map(p => p.llm_role))];
+	$: uniqueUserRoles = [...new Set(personas.map(p => p.user_role_display))];
+	$: uniqueLLMRoles = [...new Set(personas.map(p => p.llm_role_display))];
 
 	onMount(async () => {
 		personas = await api.getPersonas();
@@ -68,16 +61,14 @@
 	function editPersona(persona: Persona) {
 		editingPersona = persona;
 		newPersona = {
-			user_role: persona.user_role,
 			user_role_display: persona.user_role_display,
-			llm_role: persona.llm_role,
 			llm_role_display: persona.llm_role_display
 		};
 		showForm = true;
 	}
 
 	function resetForm() {
-		newPersona = { user_role: '', user_role_display: '', llm_role: '', llm_role_display: '' };
+		newPersona = { user_role_display: '', llm_role_display: '' };
 		editingPersona = null;
 		showForm = false;
 		showUserRoleFields = false;
@@ -87,32 +78,23 @@
 	function handleUserRoleChange(value: string) {
 		if (value === 'ADD_NEW') {
 			showUserRoleFields = true;
-			newPersona.user_role = '';
 			newPersona.user_role_display = '';
 		} else {
 			showUserRoleFields = false;
-			newPersona.user_role = value;
-			// Auto-fill display name from existing persona
-			const existing = personas.find(p => p.user_role === value);
-			if (existing) {
-				newPersona.user_role_display = existing.user_role_display;
-			}
+			newPersona.user_role_display = value;
 		}
+		// Reset LLM role when user role changes
+		newPersona.llm_role_display = '';
+		showLLMRoleFields = false;
 	}
 	
 	function handleLLMRoleChange(value: string) {
 		if (value === 'ADD_NEW') {
 			showLLMRoleFields = true;
-			newPersona.llm_role = '';
 			newPersona.llm_role_display = '';
 		} else {
 			showLLMRoleFields = false;
-			newPersona.llm_role = value;
-			// Auto-fill display name from existing persona
-			const existing = personas.find(p => p.llm_role === value);
-			if (existing) {
-				newPersona.llm_role_display = existing.llm_role_display;
-			}
+			newPersona.llm_role_display = value;
 		}
 	}
 </script>
@@ -130,37 +112,37 @@
 				<label>User Role:</label>
 				<RichDropdown 
 					items={userRoleOptions}
-					bind:selectedValue={newPersona.user_role}
+					bind:selectedValue={newPersona.user_role_display}
 					placeholder="Select User Role"
 					allowAddNew={true}
 					on:select={(e) => handleUserRoleChange(e.detail.value)}
 					on:addNew={() => handleUserRoleChange('ADD_NEW')}
 				/>
 				
-				{#if showUserRoleFields}
-					<input bind:value={newPersona.user_role} placeholder="User Role (e.g., developer)" required />
+				{#if showUserRoleFields || newPersona.user_role_display}
 					<input bind:value={newPersona.user_role_display} placeholder="User Role Display (e.g., Software Developer)" required />
-				{:else if newPersona.user_role}
-					<input bind:value={newPersona.user_role_display} placeholder="User Role Display" required />
 				{/if}
 			</div>
 
 			<div class="role-section">
 				<label>LLM Role:</label>
-				<RichDropdown 
-					items={llmRoleOptions}
-					bind:selectedValue={newPersona.llm_role}
-					placeholder="Select LLM Role"
-					allowAddNew={true}
-					on:select={(e) => handleLLMRoleChange(e.detail.value)}
-					on:addNew={() => handleLLMRoleChange('ADD_NEW')}
-				/>
+				{#if newPersona.user_role_display}
+					<RichDropdown 
+						items={llmRoleOptions}
+						bind:selectedValue={newPersona.llm_role_display}
+						placeholder="Select LLM Role"
+						allowAddNew={true}
+						on:select={(e) => handleLLMRoleChange(e.detail.value)}
+						on:addNew={() => handleLLMRoleChange('ADD_NEW')}
+					/>
+				{:else}
+					<div class="disabled-dropdown">
+						<span>Please select a User Role first</span>
+					</div>
+				{/if}
 				
-				{#if showLLMRoleFields}
-					<input bind:value={newPersona.llm_role} placeholder="LLM Role (e.g., code_reviewer)" required />
+				{#if showLLMRoleFields || newPersona.llm_role_display}
 					<input bind:value={newPersona.llm_role_display} placeholder="LLM Role Display (e.g., Senior Code Reviewer)" required />
-				{:else if newPersona.llm_role}
-					<input bind:value={newPersona.llm_role_display} placeholder="LLM Role Display" required />
 				{/if}
 			</div>
 
@@ -299,5 +281,14 @@
 	
 	button:hover {
 		background: #005a87;
+	}
+	
+	.disabled-dropdown {
+		padding: 8px;
+		border: 1px solid #ccc;
+		border-radius: 4px;
+		background: #f5f5f5;
+		color: #666;
+		font-style: italic;
 	}
 </style>

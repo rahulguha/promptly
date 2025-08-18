@@ -36,6 +36,6 @@ declare module "$app/types" {
 		};
 		Pathname(): "/";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
-		Asset(): "/promptly-logo.png";
+		Asset(): "/promptly-logo.png" | "/promptly-logo.svg" | "/promptly-logo1.png" | "/promptly-logo2.png";
 	}
 }

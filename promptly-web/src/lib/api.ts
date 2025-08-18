@@ -2,9 +2,7 @@ const API_BASE = "/v1";
 
 export interface Persona {
   persona_id: string;
-  user_role: string;
   user_role_display: string;
-  llm_role: string;
   llm_role_display: string;
 }
 

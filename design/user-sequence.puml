@@ -1,0 +1,25 @@
+title "Prompt Management User Actions Flow"
+actor "User" as user
+
+boundary "Persona \nManagement" as persona
+boundary "Template \nManagement" as template
+boundary "Prompt \nGeneration" as prompt
+
+group Persona Management
+user -> persona: Selects/Creates User Role \n for prompt
+user -> persona: Selects LLM's Role \n for prompt
+persona-->persona: Store Persona (user role + \nllm role)
+end group
+
+group Template Management
+user -> template: Select Persona (user and llm role combination)
+user -> template: Add Variables
+user -> template: Define Template text using variables
+template --> template: Store Template
+end group
+
+group Prompt Generation
+user -> prompt: Select Template
+user -> prompt: Add Values
+prompt --> prompt: Generate and \nStore Prompt
+end group

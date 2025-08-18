@@ -1,8 +1,10 @@
 # Promptly
 
-A prompt management application with persona-based templating for AI interactions. Create reusable prompt templates with variable substitution and manage different personas for various use cases.
+A prompt management application with persona-based templating for AI interactions. Create reusable prompt templates with variable substitution and manage different personas for various use cases. User can play a role and may want LLM to play another role. For example, an user may want to play role of a **_software developer_** and may want LLM to play role of a **_code reviewer_**.
 
 ## Features
+
+![alt text](image.png)
 
 - **Persona Management**: Define user and LLM roles for different contexts
 - **Template System**: Create reusable prompt templates with `{{variable}}` placeholders
@@ -10,6 +12,12 @@ A prompt management application with persona-based templating for AI interaction
 - **Web Interface**: Modern SvelteKit frontend for easy management
 - **REST API**: Full CRUD operations for all entities
 - **JSON Storage**: Simple file-based persistence
+
+## Use Case
+
+- **Generic RAG Application**: User adds their artifacts and later wants to query that corpus. However they want to use sophesticated prompts to customize response. Example: A High School student may want to generate Mock Tests for his preparation.
+- **Interviewee**: User adds their artifacts and later wants to query that corpus. They want to simulate interview process using LLMs ability to play a role of an interviewer.
+- **Pair Programming**: User may want to use LLM for pair programming by asking LLM to play that role.
 
 ## Quick Start
 
@@ -21,22 +29,26 @@ A prompt management application with persona-based templating for AI interaction
 ### Installation
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/rahulguha/promptly.git
 cd promptly
 ```
 
 2. Build the Go backend:
+
 ```bash
 go build -o promptly cmd/promptly/main.go
 ```
 
 3. Start the API server:
+
 ```bash
 ./promptly serve
 ```
 
 4. Set up the web interface (in a new terminal):
+
 ```bash
 cd promptly-web
 npm install
@@ -77,6 +89,7 @@ The API will be available at `http://localhost:8080` and the web interface at `h
 ## Development
 
 ### Backend
+
 ```bash
 # Run tests
 go test ./...
@@ -86,6 +99,7 @@ go build -o promptly cmd/promptly/main.go
 ```
 
 ### Frontend
+
 ```bash
 cd promptly-web
 
@@ -102,6 +116,7 @@ npm run preview
 ## Configuration
 
 The application looks for configuration in:
+
 - Command line flags (`--port`, `--data`)
 - Config file (`config.yaml` or `.promptly`)
 - Environment variables

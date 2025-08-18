@@ -192,9 +192,7 @@ func TestFileStorage_PersonaOperations(t *testing.T) {
 
 	// Test persona CRUD operations
 	persona := &models.Persona{
-		UserRole:        "developer",
 		UserRoleDisplay: "Software Developer",
-		LLMRole:         "code_reviewer",
 		LLMRoleDisplay:  "Senior Code Reviewer",
 	}
 
@@ -213,7 +211,7 @@ func TestFileStorage_PersonaOperations(t *testing.T) {
 		t.Fatalf("Failed to get persona: %v", err)
 	}
 
-	if found.UserRole != persona.UserRole {
-		t.Errorf("Expected user role %s, got %s", persona.UserRole, found.UserRole)
+	if found.UserRoleDisplay != persona.UserRoleDisplay {
+		t.Errorf("Expected user role display %s, got %s", persona.UserRoleDisplay, found.UserRoleDisplay)
 	}
 }

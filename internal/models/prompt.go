@@ -5,9 +5,7 @@ import "github.com/google/uuid"
 
 type Persona struct {
     ID              uuid.UUID `json:"persona_id"`
-    UserRole        string    `json:"user_role"`
     UserRoleDisplay string    `json:"user_role_display"`
-    LLMRole         string    `json:"llm_role"`
     LLMRoleDisplay  string    `json:"llm_role_display"`
 }
 
