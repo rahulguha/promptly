@@ -14,5 +14,40 @@
       "grade": "10th"
     },
     "content": "User is a High School Student and wants LLM to play the role of Patient High School Teacher. Please teach for 10th grade."
+  },
+  {
+    "id": "f33f3b5c-ab6e-442f-a96d-92097bf0bbfc",
+    "template_id": "c015ebc7-c764-442b-8a31-92b70defc081",
+    "values": {
+      "grade": "10th",
+      "numQ": "10"
+    },
+    "content": "User is a High School Student and wants LLM to play the role of Mock Tester who generates Questions. Please teach for 10th grade. And generate 10 of questions "
+  },
+  {
+    "id": "72415800-ada4-4c8f-86bf-e1c743bdd901",
+    "template_id": "c015ebc7-c764-442b-8a31-92b70defc081",
+    "values": {
+      "grade": "Rising Senior",
+      "numQ": "15"
+    },
+    "content": "User is a High School Student and wants LLM to play the role of Mock Tester who generates Questions. Please teach for Rising Senior grade. And generate 15 questions "
+  },
+  {
+    "id": "791e9ddc-1d06-4815-b58a-c4c379beef5d",
+    "template_id": "a56dc324-21d6-413a-a02d-2f72844fe169",
+    "values": {
+      "grade": "10th",
+      "numQ": "20"
+    },
+    "content": "User is a High School Student and wants LLM to play the role of Mock Tester who generates Questions. Generate 20 questions with answers. Make them multiple choice. Around 25% should be easy, 40% medium hard and remaining hard questions. The student is in 10th grade. "
+  },
+  {
+    "id": "e2228fd9-f189-4c07-a064-591002100852",
+    "template_id": "0112d01b-f7c9-425d-877f-ee9a724378e7",
+    "values": {
+      "level": "advanced"
+    },
+    "content": "User is a College Student and wants LLM to play the role of College Professor. Please teach for advanced level. Also discuss details and be concise. "
   }
 ]

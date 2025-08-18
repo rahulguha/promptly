@@ -1,5 +1,2 @@
-server:
-  port: 8080
-storage:
-  provider: json
-  path: data/prompts.json
+port: 8081
+data: data/prompts.json
