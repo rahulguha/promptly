@@ -36,11 +36,9 @@ func TestFileStorage_Create(t *testing.T) {
 	storage, _ := NewFileStorage(filePath)
 
 	prompt := &models.Prompt{
-		UserRole:  "user",
-		LLMRole:   "assistant", 
-		Template:  "Hello {{name}}",
-		Variables: []string{"name"},
-		Values:    map[string]string{"name": "world"},
+		TemplateID: uuid.New(),
+		Values:     map[string]string{"name": "world"},
+		Content:    "Hello world",
 	}
 
 	created, err := storage.Create(prompt)
@@ -52,8 +50,8 @@ func TestFileStorage_Create(t *testing.T) {
 		t.Error("Expected ID to be generated")
 	}
 
-	if created.Template != prompt.Template {
-		t.Errorf("Expected template %s, got %s", prompt.Template, created.Template)
+	if created.Content != prompt.Content {
+		t.Errorf("Expected content %s, got %s", prompt.Content, created.Content)
 	}
 }
 
@@ -63,8 +61,8 @@ func TestFileStorage_GetAll(t *testing.T) {
 	storage, _ := NewFileStorage(filePath)
 
 	// Create test prompts
-	prompt1 := &models.Prompt{UserRole: "user", LLMRole: "assistant", Template: "Test 1"}
-	prompt2 := &models.Prompt{UserRole: "user", LLMRole: "assistant", Template: "Test 2"}
+	prompt1 := &models.Prompt{TemplateID: uuid.New(), Content: "Test 1"}
+	prompt2 := &models.Prompt{TemplateID: uuid.New(), Content: "Test 2"}
 
 	storage.Create(prompt1)
 	storage.Create(prompt2)
@@ -84,7 +82,7 @@ func TestFileStorage_GetByID(t *testing.T) {
 	filePath := filepath.Join(tempDir, "test_prompts.json")
 	storage, _ := NewFileStorage(filePath)
 
-	prompt := &models.Prompt{UserRole: "user", LLMRole: "assistant", Template: "Test"}
+	prompt := &models.Prompt{TemplateID: uuid.New(), Content: "Test"}
 	created, _ := storage.Create(prompt)
 
 	found, err := storage.GetByID(created.ID)
@@ -109,23 +107,23 @@ func TestFileStorage_Update(t *testing.T) {
 	filePath := filepath.Join(tempDir, "test_prompts.json")
 	storage, _ := NewFileStorage(filePath)
 
-	prompt := &models.Prompt{UserRole: "user", LLMRole: "assistant", Template: "Original"}
+	prompt := &models.Prompt{TemplateID: uuid.New(), Content: "Original"}
 	created, _ := storage.Create(prompt)
 
 	// Update the prompt
-	created.Template = "Updated"
+	created.Content = "Updated"
 	updated, err := storage.Update(created)
 	if err != nil {
 		t.Fatalf("Failed to update prompt: %v", err)
 	}
 
-	if updated.Template != "Updated" {
-		t.Errorf("Expected template 'Updated', got %s", updated.Template)
+	if updated.Content != "Updated" {
+		t.Errorf("Expected content 'Updated', got %s", updated.Content)
 	}
 
 	// Verify it was persisted
 	found, _ := storage.GetByID(created.ID)
-	if found.Template != "Updated" {
+	if found.Content != "Updated" {
 		t.Error("Update was not persisted")
 	}
 }
@@ -135,7 +133,7 @@ func TestFileStorage_Delete(t *testing.T) {
 	filePath := filepath.Join(tempDir, "test_prompts.json")
 	storage, _ := NewFileStorage(filePath)
 
-	prompt := &models.Prompt{UserRole: "user", LLMRole: "assistant", Template: "Test"}
+	prompt := &models.Prompt{TemplateID: uuid.New(), Content: "Test"}
 	created, _ := storage.Create(prompt)
 
 	err := storage.Delete(created.ID)
@@ -164,9 +162,8 @@ func TestFileStorage_ConcurrentAccess(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 			prompt := &models.Prompt{
-				UserRole: "user",
-				LLMRole:  "assistant",
-				Template: fmt.Sprintf("Test %d", i),
+				TemplateID: uuid.New(),
+				Content:    fmt.Sprintf("Test %d", i),
 			}
 			_, err := storage.Create(prompt)
 			if err != nil {
@@ -188,37 +185,35 @@ func TestFileStorage_ConcurrentAccess(t *testing.T) {
 	}
 }
 
-func TestFileStorage_SearchPrompt(t *testing.T) {
+func TestFileStorage_PersonaOperations(t *testing.T) {
 	tempDir := t.TempDir()
 	filePath := filepath.Join(tempDir, "test_prompts.json")
 	storage, _ := NewFileStorage(filePath)
 
-	// Create test prompts with different roles
-	prompts := []*models.Prompt{
-		{UserRole: "developer", LLMRole: "coder", Template: "Code review"},
-		{UserRole: "developer", LLMRole: "assistant", Template: "General help"},
-		{UserRole: "writer", LLMRole: "editor", Template: "Edit text"},
+	// Test persona CRUD operations
+	persona := &models.Persona{
+		UserRole:        "developer",
+		UserRoleDisplay: "Software Developer",
+		LLMRole:         "code_reviewer",
+		LLMRoleDisplay:  "Senior Code Reviewer",
 	}
 
-	for _, p := range prompts {
-		storage.Create(p)
-	}
-
-	// Test search by user role
-	results, err := storage.SearchPrompt("developer", "")
+	created, err := storage.CreatePersona(persona)
 	if err != nil {
-		t.Fatalf("Search failed: %v", err)
-	}
-	if len(results) != 2 {
-		t.Errorf("Expected 2 results for developer role, got %d", len(results))
+		t.Fatalf("Failed to create persona: %v", err)
 	}
 
-	// Test search by both roles
-	results, err = storage.SearchPrompt("developer", "coder")
-	if err != nil {
-		t.Fatalf("Search failed: %v", err)
+	if created.ID == uuid.Nil {
+		t.Error("Expected ID to be generated")
 	}
-	if len(results) != 1 {
-		t.Errorf("Expected 1 result for developer+coder, got %d", len(results))
+
+	// Test get by ID
+	found, err := storage.GetPersonaByID(created.ID)
+	if err != nil {
+		t.Fatalf("Failed to get persona: %v", err)
+	}
+
+	if found.UserRole != persona.UserRole {
+		t.Errorf("Expected user role %s, got %s", persona.UserRole, found.UserRole)
 	}
 }
