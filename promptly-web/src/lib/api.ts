@@ -105,4 +105,19 @@ export const api = {
     const res = await fetch(`${API_BASE}/prompts`);
     return res.json();
   },
+
+  async updatePrompt(id: string, prompt: Omit<Prompt, "id">): Promise<Prompt> {
+    const res = await fetch(`${API_BASE}/prompts/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(prompt),
+    });
+    return res.json();
+  },
+
+  async deletePrompt(id: string): Promise<void> {
+    await fetch(`${API_BASE}/prompts/${id}`, {
+      method: "DELETE",
+    });
+  },
 };

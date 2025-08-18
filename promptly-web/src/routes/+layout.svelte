@@ -40,7 +40,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: flex-start;
-		gap: 12px;
+		gap: 0px;
 		max-width: 1200px;
 		margin: 0 auto;
 	}
@@ -62,13 +62,13 @@
 	}
 	
 	header p {
-		margin: 5px 0 0 0;
+		margin: 1px 0 0 0;
 		opacity: 0.9;
 	}
 	
 	main {
 		max-width: 1200px;
 		margin: 0 auto;
-		padding: 5px;
+		padding: 1px;
 	}
 </style>

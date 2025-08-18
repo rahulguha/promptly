@@ -9,6 +9,8 @@
 	let selectedTemplateId = '';
 	let variables: Record<string, string> = {};
 	let selectedTemplate: PromptTemplate | null = null;
+	let editingPrompt: Prompt | null = null;
+	let showEditForm = false;
 
 	onMount(async () => {
 		try {
@@ -45,10 +47,14 @@
 		e.preventDefault();
 		if (!selectedTemplateId) return;
 		
-		const prompt = await api.generatePrompt(selectedTemplateId, variables);
-		generatedPrompts = [prompt, ...generatedPrompts];
-		variables = {};
-		selectedTemplateId = '';
+		if (editingPrompt) {
+			await updatePrompt();
+		} else {
+			const prompt = await api.generatePrompt(selectedTemplateId, variables);
+			generatedPrompts = [prompt, ...generatedPrompts];
+			variables = {};
+			selectedTemplateId = '';
+		}
 	}
 
 	function getPersonaDisplay(personaId: string) {
@@ -78,6 +84,50 @@
 			llm_role: persona?.llm_role || 'unknown'
 		};
 	});
+
+	async function deletePrompt(prompt: Prompt) {
+		if (confirm('Delete this prompt?')) {
+			await api.deletePrompt(prompt.id);
+			generatedPrompts = generatedPrompts.filter(p => p.id !== prompt.id);
+		}
+	}
+
+	function editPrompt(prompt: Prompt) {
+		editingPrompt = prompt;
+		selectedTemplateId = prompt.template_id;
+		variables = { ...prompt.values };
+		showEditForm = true;
+	}
+
+	async function updatePrompt() {
+		if (!editingPrompt) return;
+		
+		const template = templates.find(t => t.id === editingPrompt.template_id);
+		if (!template) return;
+
+		// Generate new content with updated variables
+		let content = template.template;
+		for (const [variable, value] of Object.entries(variables)) {
+			const placeholder = "{{" + variable + "}}";
+			content = content.replace(new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), value);
+		}
+
+		const updatedPrompt = await api.updatePrompt(editingPrompt.id, {
+			template_id: editingPrompt.template_id,
+			values: variables,
+			content: content
+		});
+
+		generatedPrompts = generatedPrompts.map(p => p.id === updatedPrompt.id ? updatedPrompt : p);
+		resetEditForm();
+	}
+
+	function resetEditForm() {
+		editingPrompt = null;
+		showEditForm = false;
+		variables = {};
+		selectedTemplateId = '';
+	}
 </script>
 
 <div class="prompt-generator">
@@ -108,7 +158,12 @@
 				{/each}
 			</div>
 
-			<button onclick={(e) => generatePrompt(e)}>Generate Prompt</button>
+			<button onclick={(e) => generatePrompt(e)}>
+				{editingPrompt ? 'Update Prompt' : 'Generate Prompt'}
+			</button>
+			{#if editingPrompt}
+				<button type="button" onclick={resetEditForm}>Cancel Edit</button>
+			{/if}
 		{/if}
 	</div>
 
@@ -116,9 +171,19 @@
 		<h3>Generated Prompts</h3>
 		{#each generatedPrompts as prompt}
 			<div class="prompt-card">
-				<div class="prompt-meta">
-					<small><strong>Template:</strong> {getTemplateDisplay(prompt.template_id)}</small>
-					<small><strong>ID:</strong> {prompt.id}</small>
+				<div class="prompt-header">
+					<div class="prompt-meta">
+						<small><strong>Template:</strong> {getTemplateDisplay(prompt.template_id)}</small>
+						<small><strong>ID:</strong> {prompt.id}</small>
+					</div>
+					<div class="prompt-actions">
+						<button class="icon-btn edit-btn" onclick={() => editPrompt(prompt)} title="Edit">
+							✏️
+						</button>
+						<button class="icon-btn delete-btn" onclick={() => deletePrompt(prompt)} title="Delete">
+							🗑️
+						</button>
+					</div>
 				</div>
 				<div class="prompt-content">
 					<strong>Final Content:</strong>
@@ -202,11 +267,51 @@
 		background: white;
 	}
 	
-	.prompt-meta {
+	.prompt-header {
 		display: flex;
 		justify-content: space-between;
+		align-items: flex-start;
 		margin-bottom: 15px;
+	}
+	
+	.prompt-meta {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
 		color: #666;
+	}
+	
+	.prompt-actions {
+		display: flex;
+		gap: 8px;
+	}
+	
+	.icon-btn {
+		padding: 6px;
+		font-size: 16px;
+		border-radius: 4px;
+		background: #f8f9fa;
+		border: 1px solid #dee2e6;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+	}
+	
+	.icon-btn:hover {
+		background: #e9ecef;
+	}
+	
+	.edit-btn:hover {
+		background: #d4edda;
+		border-color: #c3e6cb;
+	}
+	
+	.delete-btn:hover {
+		background: #f8d7da;
+		border-color: #f5c6cb;
 	}
 	
 	.prompt-content pre {

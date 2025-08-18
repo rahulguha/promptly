@@ -3,9 +3,9 @@
     "id": "9a0a0de1-af62-44af-a62c-ab0be14780ca",
     "template_id": "7407b2d4-1448-40cb-a628-dc5775aa3268",
     "values": {
-      "grade": "12th"
+      "grade": "11th"
     },
-    "content": "User is a High School Student and wants LLM to play the role of Patient High School Teacher. Please teach for 12th "
+    "content": "User is a High School Student and wants LLM to play the role of Patient High School Teacher. Please teach for 11th grade."
   },
   {
     "id": "014528c5-c26c-433d-a938-38f39abbbb62",
