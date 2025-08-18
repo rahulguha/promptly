@@ -28,5 +28,25 @@ go.work.sum
 .env
 
 # Editor/IDE
-# .idea/
-# .vscode/
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+promptly
+dist/
+build/
+
+# Frontend
+promptly-web/node_modules/
+promptly-web/.svelte-kit/
+promptly-web/build/
+promptly-web/dist/
+*.log
+npm-debug.log*

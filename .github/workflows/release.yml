@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: promptly-web/package-lock.json
+    
+    - name: Install frontend dependencies
+      working-directory: promptly-web
+      run: npm ci
+    
+    - name: Build frontend
+      working-directory: promptly-web
+      run: npm run build
+    
+    - name: Build binaries
+      run: |
+        # Build for multiple platforms
+        GOOS=linux GOARCH=amd64 go build -o promptly-linux-amd64 cmd/promptly/main.go
+        GOOS=darwin GOARCH=amd64 go build -o promptly-darwin-amd64 cmd/promptly/main.go
+        GOOS=darwin GOARCH=arm64 go build -o promptly-darwin-arm64 cmd/promptly/main.go
+        GOOS=windows GOARCH=amd64 go build -o promptly-windows-amd64.exe cmd/promptly/main.go
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          promptly-linux-amd64
+          promptly-darwin-amd64
+          promptly-darwin-arm64
+          promptly-windows-amd64.exe
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
