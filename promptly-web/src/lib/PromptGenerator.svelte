@@ -11,6 +11,7 @@
 	let selectedTemplate: PromptTemplate | null = null;
 	let editingPrompt: Prompt | null = null;
 	let showEditForm = false;
+	let filterTemplateId = '';
 
 	onMount(async () => {
 		try {
@@ -84,6 +85,15 @@
 			llm_role: persona?.llm_role || 'unknown'
 		};
 	});
+
+	$: filterOptions = [
+		{ value: '', display: 'All Templates', meta: 'Show all prompts', user_role: 'all', llm_role: 'all' },
+		...templateOptions
+	];
+
+	$: filteredPrompts = filterTemplateId 
+		? generatedPrompts.filter(p => p.template_id === filterTemplateId)
+		: generatedPrompts;
 
 	async function deletePrompt(prompt: Prompt) {
 		if (confirm('Delete this prompt?')) {
@@ -168,8 +178,17 @@
 	</div>
 
 	<div class="generated-prompts">
-		<h3>Generated Prompts</h3>
-		{#each generatedPrompts as prompt}
+		<div class="prompts-header">
+			<h3>Generated Prompts</h3>
+			<div class="filter-section">
+				<RichDropdown 
+					items={filterOptions}
+					bind:selectedValue={filterTemplateId}
+					placeholder="Filter by template"
+				/>
+			</div>
+		</div>
+		{#each filteredPrompts as prompt}
 			<div class="prompt-card">
 				<div class="prompt-header">
 					<div class="prompt-meta">
@@ -257,6 +276,17 @@
 	
 	.generated-prompts {
 		margin-top: 30px;
+	}
+	
+	.prompts-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		margin-bottom: 20px;
+	}
+	
+	.filter-section {
+		min-width: 250px;
 	}
 	
 	.prompt-card {

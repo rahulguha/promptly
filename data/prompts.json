@@ -37,10 +37,10 @@
     "id": "791e9ddc-1d06-4815-b58a-c4c379beef5d",
     "template_id": "a56dc324-21d6-413a-a02d-2f72844fe169",
     "values": {
-      "grade": "10th",
-      "numQ": "20"
+      "grade": "Senior",
+      "numQ": "12"
     },
-    "content": "User is a High School Student and wants LLM to play the role of Mock Tester who generates Questions. Generate 20 questions with answers. Make them multiple choice. Around 25% should be easy, 40% medium hard and remaining hard questions. The student is in 10th grade. "
+    "content": "User is a High School Student and wants LLM to play the role of Mock Tester who generates Questions. Generate 12 questions with answers. Make them multiple choice. Around 25% should be easy, 40% medium hard and remaining hard questions. The student is in Senior grade. "
   },
   {
     "id": "e2228fd9-f189-4c07-a064-591002100852",
