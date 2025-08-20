@@ -12,12 +12,13 @@ A prompt management application with persona-based templating for AI interaction
 
 - **Persona Management**: Define user and LLM roles for different contexts
 - **Template System**: Create reusable prompt templates with `{{variable}}` placeholders
+- **Template Version Management**: Maintain versions of templates and edit them separately. Track generated prompts
 - **Prompt Generation**: Generate final prompts by substituting template variables
 - **Web Interface**: Modern SvelteKit frontend for easy management
 - **REST API**: Full CRUD operations for all entities
 - **Storage**:
-  - **JsonStore: Simple file-based persistence
-  - ** SQLite store
+  - **JsonStore**: Simple file-based persistence
+  - **SQLite store**
 
 ## Use Case
 
