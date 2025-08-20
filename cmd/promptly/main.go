@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/rahulguha/promptly/internal/routes"
-	"github.com/rahulguha/promptly/internal/storage/jsonstore"
+	"github.com/rahulguha/promptly/internal/storage"
 )
 
 var cfgFile string
@@ -46,6 +46,12 @@ func init() {
 
 	serveCmd.Flags().StringP("data", "d", "data/prompts.json", "Path to data file")
 	viper.BindPFlag("data", serveCmd.Flags().Lookup("data"))
+
+	serveCmd.Flags().StringP("storage", "s", "json", "Storage backend type (json or sqlite)")
+	viper.BindPFlag("storage", serveCmd.Flags().Lookup("storage"))
+
+	serveCmd.Flags().String("db", "data/promptly.db", "Path to SQLite database file (used when --storage=sqlite)")
+	viper.BindPFlag("db", serveCmd.Flags().Lookup("db"))
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -77,13 +83,38 @@ func initConfig() {
 func startServer() {
 	// Get configuration from flags/config
 	port := viper.GetString("port")
+	storageTypeStr := viper.GetString("storage")
 	dataPath := viper.GetString("data")
+	dbPath := viper.GetString("db")
 
-	// Initialize storage and handler
-	store, err := jsonstore.NewFileStorage(dataPath)
+	// Validate and get storage type
+	storageType, err := storage.ValidateStorageType(storageTypeStr)
 	if err != nil {
-		log.Fatalf("Failed to initialize storage: %v", err)
+		log.Fatalf("Invalid storage type: %v", err)
 	}
+
+	// Create storage configuration
+	var config storage.StorageConfig
+	switch storageType {
+	case storage.StorageTypeJSON:
+		config = storage.StorageConfig{
+			Type:     storage.StorageTypeJSON,
+			JSONPath: dataPath,
+		}
+	case storage.StorageTypeSQLite:
+		config = storage.StorageConfig{
+			Type:   storage.StorageTypeSQLite,
+			DBPath: dbPath,
+		}
+	}
+
+	// Initialize storage
+	store, err := storage.NewStorage(config)
+	if err != nil {
+		log.Fatalf("Failed to initialize %s storage: %v", storageType, err)
+	}
+	defer store.Close()
+
 	handler := &routes.Handler{Store: store}
 
 	// Setup Gin router
@@ -92,7 +123,12 @@ func startServer() {
 
 	// Start server
 	fmt.Printf("Starting Promptly server on port %s\n", port)
-	fmt.Printf("Using data file: %s\n", dataPath)
+	fmt.Printf("Using %s storage\n", storageType)
+	if storageType == storage.StorageTypeJSON {
+		fmt.Printf("Data file: %s\n", dataPath)
+	} else {
+		fmt.Printf("Database: %s\n", dbPath)
+	}
 
 	if err := r.Run(":" + port); err != nil {
 		log.Fatal("Failed to start server:", err)

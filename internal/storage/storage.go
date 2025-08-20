@@ -34,4 +34,7 @@ type Storage interface {
 	Create(prompt *models.Prompt) (*models.Prompt, error)
 	Update(prompt *models.Prompt) (*models.Prompt, error)
 	Delete(id uuid.UUID) error
+	
+	// Cleanup
+	Close() error
 }

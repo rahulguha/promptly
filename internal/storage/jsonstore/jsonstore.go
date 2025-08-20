@@ -567,3 +567,8 @@ func (fs *FileStorage) DeletePersona(id uuid.UUID) error {
 	
 	return fmt.Errorf("persona with ID %s not found", id)
 }
+
+// Close closes the storage (no-op for JSON storage)
+func (fs *FileStorage) Close() error {
+	return nil
+}
