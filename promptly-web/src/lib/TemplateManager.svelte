@@ -7,6 +7,7 @@
 	let personas: Persona[] = [];
 	let showForm = false;
 	let editingTemplate: PromptTemplate | null = null;
+	let creatingVersion = false;
 	let newTemplate = {
 		persona_id: '',
 		template: '',
@@ -39,24 +40,52 @@
 	async function updateTemplate() {
 		if (!editingTemplate) return;
 		const variables = newTemplate.variables.filter(v => v.trim());
-		const updated = await api.updateTemplate(editingTemplate.id, {
-			...newTemplate,
-			variables
-		});
-		templates = templates.map(t => t.id === updated.id ? updated : t);
+		
+		let updated;
+		if (creatingVersion) {
+			// Create new version
+			updated = await api.createTemplateVersion(editingTemplate.id, {
+				persona_id: newTemplate.persona_id,
+				template: newTemplate.template,
+				variables
+			});
+			templates = [...templates, updated];
+		} else {
+			// Update existing template
+			updated = await api.updateTemplate(editingTemplate.id, {
+				persona_id: newTemplate.persona_id,
+				version: editingTemplate.version,
+				template: newTemplate.template,
+				variables
+			});
+			templates = templates.map(t => t.id === updated.id && t.version === updated.version ? updated : t);
+		}
+		
 		resetForm();
 	}
 
 	async function deleteTemplate(template: PromptTemplate) {
 		const personaDisplay = getPersonaDisplay(template.persona_id);
-		if (confirm(`Delete template for ${personaDisplay}?`)) {
-			await api.deleteTemplate(template.id);
-			templates = templates.filter(t => t.id !== template.id);
+		if (confirm(`Delete template v${template.version} for ${personaDisplay}?`)) {
+			await api.deleteTemplate(template.id, template.version);
+			templates = templates.filter(t => !(t.id === template.id && t.version === template.version));
 		}
 	}
 
 	function editTemplate(template: PromptTemplate) {
 		editingTemplate = template;
+		creatingVersion = false;
+		newTemplate = {
+			persona_id: template.persona_id,
+			template: template.template,
+			variables: [...template.variables]
+		};
+		showForm = true;
+	}
+
+	function createNewVersion(template: PromptTemplate) {
+		editingTemplate = template;
+		creatingVersion = true;
 		newTemplate = {
 			persona_id: template.persona_id,
 			template: template.template,
@@ -68,6 +97,7 @@
 	function resetForm() {
 		newTemplate = { persona_id: '', template: '', variables: [''] };
 		editingTemplate = null;
+		creatingVersion = false;
 		showForm = false;
 	}
 
@@ -93,6 +123,17 @@
 	</button>
 
 	{#if showForm}
+		<div class="form-header">
+			<h3>
+				{#if creatingVersion}
+					Creating New Version of Template (v{editingTemplate?.version}) 
+				{:else if editingTemplate}
+					Editing Template (v{editingTemplate?.version})
+				{:else}
+					Create New Template
+				{/if}
+			</h3>
+		</div>
 		<form onsubmit={(e) => { e.preventDefault(); editingTemplate ? updateTemplate() : createTemplate(); }} class="template-form">
 			<RichDropdown 
 				items={personaOptions}
@@ -118,7 +159,15 @@
 				<button type="button" onclick={addVariable}>Add Variable</button>
 			</div>
 
-			<button type="submit">{editingTemplate ? 'Update' : 'Create'} Template</button>
+			<button type="submit">
+				{#if creatingVersion}
+					Create New Version
+				{:else if editingTemplate}
+					Update Template
+				{:else}
+					Create Template
+				{/if}
+			</button>
 			{#if editingTemplate}
 				<button type="button" onclick={resetForm}>Cancel Edit</button>
 			{/if}
@@ -132,11 +181,15 @@
 					<button class="icon-btn edit-btn" onclick={() => editTemplate(template)} title="Edit">
 						✏️
 					</button>
+					<button class="icon-btn version-btn" onclick={() => createNewVersion(template)} title="Create new Version">
+						📝
+					</button>
 					<button class="icon-btn delete-btn" onclick={() => deleteTemplate(template)} title="Delete">
 						🗑️
 					</button>
 				</div>
 				<div class="template-display">
+					<div class="template-version">v{template.version}</div>
 					<!-- <div class="template-persona">{getPersonaDisplay(template.persona_id)}</div> -->
 					<div class="template-preview">{template.template.slice(0, 80)}...</div>
 				</div>
@@ -148,6 +201,16 @@
 <style>
 	.template-manager {
 		margin: 20px;
+	}
+
+	.form-header {
+		margin: 20px 0 10px 0;
+	}
+
+	.form-header h3 {
+		color: #007cba;
+		margin: 0;
+		font-size: 18px;
 	}
 	
 	.template-form {
@@ -210,6 +273,13 @@
 		flex: 1;
 	}
 	
+	.template-version {
+		font-size: 12px;
+		font-weight: bold;
+		color: #28a745;
+		margin-bottom: 2px;
+	}
+
 	.template-persona {
 		font-size: 14px;
 		font-weight: bold;
@@ -244,6 +314,11 @@
 	.edit-btn:hover {
 		background: #d4edda;
 		border-color: #c3e6cb;
+	}
+
+	.version-btn:hover {
+		background: #d1ecf1;
+		border-color: #bee5eb;
 	}
 	
 	.delete-btn:hover {

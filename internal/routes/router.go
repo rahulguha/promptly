@@ -26,6 +26,7 @@ func RegisterRoutes(r *gin.Engine, handler *Handler) {
 			templates.GET("/:id", handler.GetTemplate)
 			templates.POST("", handler.CreateTemplate)
 			templates.PUT("/:id", handler.UpdateTemplate)
+			templates.POST("/:id/version", handler.CreateTemplateVersion)
 			templates.DELETE("/:id", handler.DeleteTemplate)
 		}
 		

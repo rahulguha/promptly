@@ -7,6 +7,7 @@
 	let personas: Persona[] = [];
 	let generatedPrompts: Prompt[] = [];
 	let selectedTemplateId = '';
+	let selectedTemplateVersion = 1;
 	let variables: Record<string, string> = {};
 	let selectedTemplate: PromptTemplate | null = null;
 	let editingPrompt: Prompt | null = null;
@@ -31,7 +32,12 @@
 
 	$: {
 		if (selectedTemplateId) {
-			selectedTemplate = templates.find(t => t.id === selectedTemplateId) || null;
+			// Parse the compound value (id:version)
+			const [templateId, versionStr] = selectedTemplateId.split(':');
+			const version = parseInt(versionStr);
+			selectedTemplateVersion = version;
+			
+			selectedTemplate = templates.find(t => t.id === templateId && t.version === version) || null;
 			if (selectedTemplate) {
 				// Initialize variables object
 				variables = {};
@@ -41,6 +47,10 @@
 					}
 				});
 			}
+		} else {
+			selectedTemplate = null;
+			selectedTemplateVersion = 1;
+			variables = {};
 		}
 	}
 
@@ -51,7 +61,9 @@
 		if (editingPrompt) {
 			await updatePrompt();
 		} else {
-			const prompt = await api.generatePrompt(selectedTemplateId, variables);
+			// Parse template ID from the compound value
+			const [templateId] = selectedTemplateId.split(':');
+			const prompt = await api.generatePrompt(templateId, variables);
 			generatedPrompts = [prompt, ...generatedPrompts];
 			variables = {};
 			selectedTemplateId = '';
@@ -70,16 +82,40 @@
 		return persona ? `${persona.user_role_display} → ${persona.llm_role_display}` : 'Unknown';
 	}
 
-	function getTemplateDisplay(templateId: string) {
-		const template = templates.find(t => t.id === templateId);
-		return template ? getPersonaDisplay(template.persona_id) : 'Unknown';
+	function getTemplateDisplay(templateId: string, templateVersion?: number) {
+		const template = templates.find(t => t.id === templateId && (templateVersion ? t.version === templateVersion : true));
+		if (!template) return 'Unknown';
+		const personaDisplay = getPersonaDisplay(template.persona_id);
+		return `${personaDisplay} (v${template.version})`;
+	}
+
+	function showTemplateDetails(templateId: string, templateVersion: number) {
+		const template = templates.find(t => t.id === templateId && t.version === templateVersion);
+		if (!template) {
+			alert('Template not found');
+			return;
+		}
+		
+		const persona = personas.find(p => p.persona_id === template.persona_id);
+		const personaDisplay = persona ? `${persona.user_role_display} → ${persona.llm_role_display}` : 'Unknown Persona';
+		
+		const details = `Template Details:
+		
+Persona: ${personaDisplay}
+Version: ${template.version}
+Variables: ${template.variables.join(', ')}
+
+Template Content:
+${template.template}`;
+		
+		alert(details);
 	}
 	
 	$: templateOptions = templates.map(template => {
 		const persona = personas.find(p => p.persona_id === template.persona_id);
 		return {
-			value: template.id,
-			display: persona ? `${persona.user_role_display} → ${persona.llm_role_display}` : 'Unknown Persona',
+			value: `${template.id}:${template.version}`,
+			display: persona ? `${persona.user_role_display} → ${persona.llm_role_display} (v${template.version})` : 'Unknown Persona',
 			meta: template.template.slice(0, 60) + '...',
 			user_role: persona?.user_role || 'unknown',
 			llm_role: persona?.llm_role || 'unknown'
@@ -92,7 +128,16 @@
 	];
 
 	$: filteredPrompts = filterTemplateId 
-		? generatedPrompts.filter(p => p.template_id === filterTemplateId)
+		? generatedPrompts.filter(p => {
+			// Handle both compound format (id:version) and plain id for backward compatibility
+			if (filterTemplateId.includes(':')) {
+				const [templateId, versionStr] = filterTemplateId.split(':');
+				const version = parseInt(versionStr);
+				return p.template_id === templateId && p.template_version === version;
+			} else {
+				return p.template_id === filterTemplateId;
+			}
+		})
 		: generatedPrompts;
 
 	async function deletePrompt(prompt: Prompt) {
@@ -104,15 +149,15 @@
 
 	function editPrompt(prompt: Prompt) {
 		editingPrompt = prompt;
-		selectedTemplateId = prompt.template_id;
-		variables = { ...prompt.values };
+		selectedTemplateId = `${prompt.template_id}:${prompt.template_version}`;
+		variables = { ...prompt.variable_values || {} };
 		showEditForm = true;
 	}
 
 	async function updatePrompt() {
 		if (!editingPrompt) return;
 		
-		const template = templates.find(t => t.id === editingPrompt.template_id);
+		const template = templates.find(t => t.id === editingPrompt.template_id && t.version === editingPrompt.template_version);
 		if (!template) return;
 
 		// Generate new content with updated variables
@@ -124,7 +169,7 @@
 
 		const updatedPrompt = await api.updatePrompt(editingPrompt.id, {
 			template_id: editingPrompt.template_id,
-			values: variables,
+			variable_values: variables,
 			content: content
 		});
 
@@ -192,7 +237,15 @@
 			<div class="prompt-card">
 				<div class="prompt-header">
 					<div class="prompt-meta">
-						<small><strong>Template:</strong> {getTemplateDisplay(prompt.template_id)}</small>
+						<small><strong>Template:</strong> 
+							<button 
+								class="template-link" 
+								onclick={() => showTemplateDetails(prompt.template_id, prompt.template_version)}
+								title="Click to view template details"
+							>
+								{getTemplateDisplay(prompt.template_id, prompt.template_version)}
+							</button>
+						</small>
 						<small><strong>ID:</strong> {prompt.id}</small>
 					</div>
 					<div class="prompt-actions">
@@ -208,10 +261,10 @@
 					<strong>Final Content:</strong>
 					<pre>{prompt.content}</pre>
 				</div>
-				{#if Object.keys(prompt.values).length > 0}
+				{#if prompt.variable_values && Object.keys(prompt.variable_values).length > 0}
 					<div class="prompt-values">
 						<strong>Values Used:</strong>
-						{#each Object.entries(prompt.values) as [key, value]}
+						{#each Object.entries(prompt.variable_values) as [key, value]}
 							<span class="value-tag">{key}: {value}</span>
 						{/each}
 					</div>
@@ -377,5 +430,22 @@
 	
 	button:hover {
 		background: #005a87;
+	}
+
+	.template-link {
+		background: none;
+		border: none;
+		color: #007cba;
+		text-decoration: underline;
+		cursor: pointer;
+		padding: 0;
+		font-size: inherit;
+		font-family: inherit;
+	}
+
+	.template-link:hover {
+		background: none;
+		color: #005a87;
+		text-decoration: none;
 	}
 </style>

@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS prompt_templates (
 CREATE TABLE IF NOT EXISTS prompts (
     id TEXT PRIMARY KEY,
     template_id TEXT NOT NULL,
-    values TEXT NOT NULL, -- JSON object with variable values
+    variable_values TEXT NOT NULL, -- JSON object with variable values
     content TEXT NOT NULL, -- Final generated prompt content
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,

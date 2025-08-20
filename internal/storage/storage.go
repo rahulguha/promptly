@@ -26,7 +26,8 @@ type Storage interface {
 	GetTemplatesByPersonaID(personaID uuid.UUID) ([]*models.PromptTemplate, error)
 	CreateTemplate(template *models.PromptTemplate) (*models.PromptTemplate, error)
 	UpdateTemplate(template *models.PromptTemplate) (*models.PromptTemplate, error)
-	DeleteTemplate(id uuid.UUID) error
+	CreateTemplateVersion(template *models.PromptTemplate) (*models.PromptTemplate, error)
+	DeleteTemplate(id uuid.UUID, version int) error
 	
 	// Prompt operations
 	GetAll() ([]*models.Prompt, error)

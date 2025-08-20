@@ -188,7 +188,32 @@ func (h *Handler) UpdateTemplate(c *gin.Context) {
 	c.JSON(http.StatusOK, updatedTemplate)
 }
 
-// DeleteTemplate handles DELETE /templates/:id
+// CreateTemplateVersion handles POST /templates/:id/version
+func (h *Handler) CreateTemplateVersion(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid template ID format"})
+		return
+	}
+
+	var template models.PromptTemplate
+	if err := c.ShouldBindJSON(&template); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	template.ID = id
+	newVersion, err := h.Store.CreateTemplateVersion(&template)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, newVersion)
+}
+
+// DeleteTemplate handles DELETE /templates/:id?version=N
 func (h *Handler) DeleteTemplate(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
@@ -197,7 +222,19 @@ func (h *Handler) DeleteTemplate(c *gin.Context) {
 		return
 	}
 
-	err = h.Store.DeleteTemplate(id)
+	versionStr := c.Query("version")
+	if versionStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Version parameter is required"})
+		return
+	}
+
+	version := 0
+	if _, err := fmt.Sscanf(versionStr, "%d", &version); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid version format"})
+		return
+	}
+
+	err = h.Store.DeleteTemplate(id, version)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -209,7 +246,7 @@ func (h *Handler) DeleteTemplate(c *gin.Context) {
 // GeneratePromptRequest represents the request for generating a prompt
 type GeneratePromptRequest struct {
 	TemplateID uuid.UUID         `json:"template_id" binding:"required"`
-	Values     map[string]string `json:"values" binding:"required"`
+	Values     map[string]string `json:"variable_values" binding:"required"`
 }
 
 // GeneratePrompt handles POST /generate-prompt
@@ -244,9 +281,10 @@ func (h *Handler) GeneratePrompt(c *gin.Context) {
 
 	// Create new prompt with rendered content
 	prompt := &models.Prompt{
-		TemplateID: req.TemplateID,
-		Values:     filteredValues,
-		Content:    content,
+		TemplateID:      req.TemplateID,
+		TemplateVersion: template.Version,
+		Values:          filteredValues,
+		Content:         content,
 	}
 
 	createdPrompt, err := h.Store.Create(prompt)

@@ -9,6 +9,7 @@ export interface Persona {
 export interface PromptTemplate {
   id: string;
   persona_id: string;
+  version: number;
   template: string;
   variables: string[];
 }
@@ -16,7 +17,8 @@ export interface PromptTemplate {
 export interface Prompt {
   id: string;
   template_id: string;
-  values: Record<string, string>;
+  template_version: number;
+  variable_values: Record<string, string>;
   content: string;
 }
 
@@ -77,8 +79,17 @@ export const api = {
     return res.json();
   },
 
-  async deleteTemplate(id: string): Promise<void> {
-    await fetch(`${API_BASE}/templates/${id}`, {
+  async createTemplateVersion(id: string, template: Omit<PromptTemplate, "id" | "version">): Promise<PromptTemplate> {
+    const res = await fetch(`${API_BASE}/templates/${id}/version`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(template),
+    });
+    return res.json();
+  },
+
+  async deleteTemplate(id: string, version: number): Promise<void> {
+    await fetch(`${API_BASE}/templates/${id}?version=${version}`, {
       method: "DELETE",
     });
   },
@@ -93,7 +104,7 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         template_id: templateId,
-        values,
+        variable_values: values,
       }),
     });
     return res.json();

@@ -280,12 +280,22 @@ func (fs *FileStorage) GetTemplateByID(id uuid.UUID) (*models.PromptTemplate, er
 		return nil, err
 	}
 	
+	// Find the latest version of the template
+	var latestTemplate *models.PromptTemplate
+	maxVersion := 0
+	
 	for _, template := range templates {
-		if template.ID == id {
-			return &template, nil
+		if template.ID == id && template.Version > maxVersion {
+			maxVersion = template.Version
+			latestTemplate = &template
 		}
 	}
-	return nil, fmt.Errorf("template with ID %s not found", id)
+	
+	if latestTemplate == nil {
+		return nil, fmt.Errorf("template with ID %s not found", id)
+	}
+	
+	return latestTemplate, nil
 }
 
 func (fs *FileStorage) CreateTemplate(template *models.PromptTemplate) (*models.PromptTemplate, error) {
@@ -307,6 +317,7 @@ func (fs *FileStorage) CreateTemplate(template *models.PromptTemplate) (*models.
 	if template.ID == uuid.Nil {
 		template.ID = uuid.New()
 	}
+	template.Version = 1 // New templates start at version 1
 	
 	templates = append(templates, *template)
 	
@@ -338,8 +349,9 @@ func (fs *FileStorage) UpdateTemplate(template *models.PromptTemplate) (*models.
 		}
 	}
 	
+	// Find and update the specific version
 	for i, t := range templates {
-		if t.ID == template.ID {
+		if t.ID == template.ID && t.Version == template.Version {
 			templates[i] = *template
 			
 			jsonData, err := json.MarshalIndent(templates, "", "  ")
@@ -355,10 +367,54 @@ func (fs *FileStorage) UpdateTemplate(template *models.PromptTemplate) (*models.
 		}
 	}
 	
-	return nil, fmt.Errorf("template with ID %s not found", template.ID)
+	return nil, fmt.Errorf("template with ID %s version %d not found", template.ID, template.Version)
 }
 
-func (fs *FileStorage) DeleteTemplate(id uuid.UUID) error {
+func (fs *FileStorage) CreateTemplateVersion(template *models.PromptTemplate) (*models.PromptTemplate, error) {
+	fs.mutex.Lock()
+	defer fs.mutex.Unlock()
+	
+	data, err := os.ReadFile(fs.templatesPath)
+	if err != nil {
+		return nil, err
+	}
+	
+	var templates []models.PromptTemplate
+	if len(data) > 0 {
+		if err := json.Unmarshal(data, &templates); err != nil {
+			return nil, err
+		}
+	}
+	
+	// Find max version for this template ID
+	maxVersion := 0
+	for _, t := range templates {
+		if t.ID == template.ID && t.Version > maxVersion {
+			maxVersion = t.Version
+		}
+	}
+	
+	if maxVersion == 0 {
+		return nil, fmt.Errorf("template with ID %s not found", template.ID)
+	}
+	
+	// Create new version
+	template.Version = maxVersion + 1
+	templates = append(templates, *template)
+	
+	jsonData, err := json.MarshalIndent(templates, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	
+	if err := os.WriteFile(fs.templatesPath, jsonData, 0644); err != nil {
+		return nil, err
+	}
+	
+	return template, nil
+}
+
+func (fs *FileStorage) DeleteTemplate(id uuid.UUID, version int) error {
 	fs.mutex.Lock()
 	defer fs.mutex.Unlock()
 	
@@ -375,7 +431,7 @@ func (fs *FileStorage) DeleteTemplate(id uuid.UUID) error {
 	}
 	
 	for i, template := range templates {
-		if template.ID == id {
+		if template.ID == id && template.Version == version {
 			templates = append(templates[:i], templates[i+1:]...)
 			
 			jsonData, err := json.MarshalIndent(templates, "", "  ")
@@ -387,7 +443,7 @@ func (fs *FileStorage) DeleteTemplate(id uuid.UUID) error {
 		}
 	}
 	
-	return fmt.Errorf("template with ID %s not found", id)
+	return fmt.Errorf("template with ID %s version %d not found", id, version)
 }
 
 func (fs *FileStorage) GetTemplatesByPersonaID(personaID uuid.UUID) ([]*models.PromptTemplate, error) {

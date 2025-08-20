@@ -118,12 +118,14 @@ func TestSQLiteStorage_Templates(t *testing.T) {
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 	CREATE TABLE prompt_templates (
-		id TEXT PRIMARY KEY,
+		id TEXT NOT NULL,
 		persona_id TEXT NOT NULL,
+		version INTEGER NOT NULL DEFAULT 1,
 		template TEXT NOT NULL,
 		variables TEXT NOT NULL,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		PRIMARY KEY (id, version),
 		FOREIGN KEY (persona_id) REFERENCES personas(id) ON DELETE CASCADE
 	);`
 	_, err = storage.db.Exec(schema)
@@ -187,7 +189,8 @@ func TestSQLiteStorage_Prompts(t *testing.T) {
 	CREATE TABLE prompts (
 		id TEXT PRIMARY KEY,
 		template_id TEXT NOT NULL,
-		"values" TEXT NOT NULL,
+		template_version INTEGER NOT NULL,
+		variable_values TEXT NOT NULL,
 		content TEXT NOT NULL,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -199,9 +202,10 @@ func TestSQLiteStorage_Prompts(t *testing.T) {
 
 	// Test prompt creation
 	prompt := &models.Prompt{
-		TemplateID: uuid.New(),
-		Values:     map[string]string{"language": "Go", "focus": "performance"},
-		Content:    "Review this Go code for performance",
+		TemplateID:      uuid.New(),
+		TemplateVersion: 1,
+		Values:          map[string]string{"language": "Go", "focus": "performance"},
+		Content:         "Review this Go code for performance",
 	}
 
 	created, err := storage.Create(prompt)
