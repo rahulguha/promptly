@@ -1,5 +1,9 @@
 # Promptly
 
+![Build Status](https://github.com/rahulguha/promptly/actions/workflows/ci.yml/badge.svg)
+
+# Promptly
+
 A prompt management application with persona-based templating for AI interactions. Create reusable prompt templates with variable substitution and manage different personas for various use cases. User can play a role and may want LLM to play another role. For example, an user may want to play role of a **_software developer_** and may want LLM to play role of a **_code reviewer_**.
 
 ## Features
