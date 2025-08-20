@@ -15,7 +15,9 @@ A prompt management application with persona-based templating for AI interaction
 - **Prompt Generation**: Generate final prompts by substituting template variables
 - **Web Interface**: Modern SvelteKit frontend for easy management
 - **REST API**: Full CRUD operations for all entities
-- **JSON Storage**: Simple file-based persistence
+- **Storage**:
+  - **JsonStore: Simple file-based persistence
+  - ** SQLite store
 
 ## Use Case
 
