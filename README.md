@@ -4,7 +4,10 @@
 
 # Promptly
 
-A prompt management application with persona-based templating for AI interactions. Create reusable prompt templates with variable substitution and manage different personas for various use cases. User can play a role and may want LLM to play another role. For example, an user may want to play role of a **_software developer_** and may want LLM to play role of a **_code reviewer_**.
+A prompt management application with **persona-based templating** for AI interactions. Create reusable **personas**, **prompt templates** with **variable substitution** for various use cases.
+User can play a role and may want LLM to play another role. For example:
+
+- I am a **High School Student** and want LLM to play role of **Patient Teacher**. Some other time same person may want LLM to play a role of **Mock Tester** or **Test Question Generator** or may be a **Student Buddy**. In each scenario, different prompts, appropriate to the role play will yield best results.
 
 ## Features
 
@@ -133,11 +136,13 @@ npm run preview
 ### Local Development
 
 1. Build the binary for Docker:
+
 ```bash
 ./docker/build-api-mac.sh
 ```
 
 2. Build and run with Docker:
+
 ```bash
 # Build the Docker image
 cd docker && docker build -f dockerfile.promptly-api-local -t promptly-api-local .
@@ -149,6 +154,7 @@ docker run -p 8082:8082 -v "$(pwd)/data":/app/data promptly-api-local
 ### Production Deployment (EC2)
 
 1. Deploy using docker-compose:
+
 ```bash
 # On your EC2 instance
 sudo mkdir -p /opt/promptly/data
@@ -179,10 +185,12 @@ The application looks for configuration in:
 ### Storage Options
 
 **JSON Storage (default)**:
+
 - Data directory: `data/` (creates `prompts.json`, `prompt_template.json`, `persona.json`)
 - Use: `--storage json --data path/to/data.json`
 
 **SQLite Storage**:
+
 - Database file: `data/promptly.db` (auto-created with schema)
 - Use: `--storage sqlite --db path/to/database.db`
 
