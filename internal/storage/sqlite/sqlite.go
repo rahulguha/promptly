@@ -36,12 +36,70 @@ func NewSQLiteStorage(dbPath string) (*SQLiteStorage, error) {
 		path: dbPath,
 	}
 
+	// Initialize schema if it doesn't exist
+	if err := storage.initSchema(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to initialize schema: %w", err)
+	}
+
 	return storage, nil
 }
 
 // Close closes the database connection
 func (s *SQLiteStorage) Close() error {
 	return s.db.Close()
+}
+
+// initSchema creates the database schema if it doesn't exist
+func (s *SQLiteStorage) initSchema() error {
+	schema := `
+	-- Personas table - stores user and LLM role definitions
+	CREATE TABLE IF NOT EXISTS personas (
+		id TEXT PRIMARY KEY,
+		user_role_display TEXT NOT NULL,
+		llm_role_display TEXT NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+
+	-- Prompt templates table - stores reusable prompt templates with variables
+	CREATE TABLE IF NOT EXISTS prompt_templates (
+		id TEXT PRIMARY KEY,
+		persona_id TEXT NOT NULL,
+		version INTEGER NOT NULL DEFAULT 1,
+		template TEXT NOT NULL,
+		variables TEXT NOT NULL, -- JSON array of variable names
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (persona_id) REFERENCES personas(id) ON DELETE CASCADE
+	);
+
+	-- Prompts table - stores generated prompts from templates
+	CREATE TABLE IF NOT EXISTS prompts (
+		id TEXT PRIMARY KEY,
+		template_id TEXT NOT NULL,
+		template_version INTEGER NOT NULL DEFAULT 1,
+		variable_values TEXT NOT NULL, -- JSON object with variable values
+		content TEXT NOT NULL, -- Final generated prompt content
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (template_id) REFERENCES prompt_templates(id) ON DELETE CASCADE
+	);
+
+	-- Indexes for better query performance
+	CREATE INDEX IF NOT EXISTS idx_personas_user_role ON personas(user_role_display);
+	CREATE INDEX IF NOT EXISTS idx_personas_llm_role ON personas(llm_role_display);
+	CREATE INDEX IF NOT EXISTS idx_templates_persona ON prompt_templates(persona_id);
+	CREATE INDEX IF NOT EXISTS idx_prompts_template ON prompts(template_id);
+	`
+
+	// Execute schema creation
+	_, err := s.db.Exec(schema)
+	if err != nil {
+		return fmt.Errorf("failed to create schema: %w", err)
+	}
+
+	return nil
 }
 
 // Persona operations

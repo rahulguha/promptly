@@ -1,0 +1,37 @@
+version: "3.8"
+
+services:
+  promptly-api:
+    image: {{Your AWS Acct Number}}.dkr.ecr.us-east-1.amazonaws.com/promptly-api-tg4:latest
+    container_name: promptly-api
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    volumes:
+      - /opt/promptly/data:/app/data
+      # - /opt/promptly/config.yaml:/app/config.yaml:ro
+    environment:
+      - GIN_MODE=release
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8082/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  default:
+    name: promptly-network

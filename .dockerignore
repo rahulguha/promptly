@@ -1,0 +1,63 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+*.md
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Go specific
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+
+# Node.js and frontend specific
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+.npm
+.yarn
+
+# Build artifacts
+dist/
+build/
+.svelte-kit/
+
+# Environment and config
+.env
+.env.local
+.env.production
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Data files (if you don't want to include them in the image)
+data/
+
+# Logs
+*.log
+
+
+.env
+.env.local
+.env.production
+docker-compose-non-public.yml
+config/production.yaml

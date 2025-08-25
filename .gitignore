@@ -43,6 +43,25 @@ promptly
 dist/
 build/
 
+# Docker binaries and build artifacts
+docker/promptly-api-*
+docker/config.yaml
+docker/data/
+docker/prompt_data*/
+
+# Docker compose files with sensitive info
+docker-compose-non-public.yml
+docker/docker-compose-non-public.yml
+
+# Configuration files with sensitive data
+config/production.yaml
+.env.production
+.env.local
+
+# Database files
+*.db
+data/*.db
+
 # Frontend
 promptly-web/node_modules/
 promptly-web/.svelte-kit/
