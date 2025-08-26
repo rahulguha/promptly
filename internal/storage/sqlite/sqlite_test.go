@@ -21,19 +21,7 @@ func TestSQLiteStorage_Personas(t *testing.T) {
 	}
 	defer storage.Close()
 
-	// Create schema manually for test
-	schema := `
-	CREATE TABLE personas (
-		id TEXT PRIMARY KEY,
-		user_role_display TEXT NOT NULL,
-		llm_role_display TEXT NOT NULL,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-	);`
-	_, err = storage.db.Exec(schema)
-	if err != nil {
-		t.Fatalf("Failed to create schema: %v", err)
-	}
+	// Schema is now automatically created by NewSQLiteStorage()
 
 	// Test Create
 	persona := &models.Persona{
@@ -108,30 +96,7 @@ func TestSQLiteStorage_Templates(t *testing.T) {
 	}
 	defer storage.Close()
 
-	// Create schema
-	schema := `
-	CREATE TABLE personas (
-		id TEXT PRIMARY KEY,
-		user_role_display TEXT NOT NULL,
-		llm_role_display TEXT NOT NULL,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-	);
-	CREATE TABLE prompt_templates (
-		id TEXT NOT NULL,
-		persona_id TEXT NOT NULL,
-		version INTEGER NOT NULL DEFAULT 1,
-		template TEXT NOT NULL,
-		variables TEXT NOT NULL,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		PRIMARY KEY (id, version),
-		FOREIGN KEY (persona_id) REFERENCES personas(id) ON DELETE CASCADE
-	);`
-	_, err = storage.db.Exec(schema)
-	if err != nil {
-		t.Fatalf("Failed to create schema: %v", err)
-	}
+	// Schema is now automatically created by NewSQLiteStorage()
 
 	// Create a persona first
 	persona := &models.Persona{
@@ -184,26 +149,32 @@ func TestSQLiteStorage_Prompts(t *testing.T) {
 	}
 	defer storage.Close()
 
-	// Create schema
-	schema := `
-	CREATE TABLE prompts (
-		id TEXT PRIMARY KEY,
-		template_id TEXT NOT NULL,
-		template_version INTEGER NOT NULL,
-		variable_values TEXT NOT NULL,
-		content TEXT NOT NULL,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-	);`
-	_, err = storage.db.Exec(schema)
+	// Schema is now automatically created by NewSQLiteStorage()
+
+	// Create a persona and template first to satisfy foreign key constraints
+	persona := &models.Persona{
+		UserRoleDisplay: "Developer",
+		LLMRoleDisplay:  "Reviewer",
+	}
+	createdPersona, err := storage.CreatePersona(persona)
 	if err != nil {
-		t.Fatalf("Failed to create schema: %v", err)
+		t.Fatalf("Failed to create persona: %v", err)
+	}
+
+	template := &models.PromptTemplate{
+		PersonaID: createdPersona.ID,
+		Template:  "Review this {{language}} code for {{focus}}",
+		Variables: []string{"language", "focus"},
+	}
+	createdTemplate, err := storage.CreateTemplate(template)
+	if err != nil {
+		t.Fatalf("Failed to create template: %v", err)
 	}
 
 	// Test prompt creation
 	prompt := &models.Prompt{
-		TemplateID:      uuid.New(),
-		TemplateVersion: 1,
+		TemplateID:      createdTemplate.ID,
+		TemplateVersion: createdTemplate.Version,
 		Values:          map[string]string{"language": "Go", "focus": "performance"},
 		Content:         "Review this Go code for performance",
 	}
