@@ -1,0 +1,26 @@
+# Dockerfile for Promptly API (Mac) - assumes binary is already built
+FROM alpine:3.20
+
+# Install ca-certificates for HTTPS requests
+RUN apk --no-cache add ca-certificates
+
+# Create app directory
+WORKDIR /app
+
+# Copy the pre-built binary
+COPY promptly-api-mac ./promptly-api-mac
+
+# Copy config file
+COPY config.yaml ./config.yaml
+
+# Create data directory for mounting
+RUN mkdir -p data
+
+# Make binary executable
+RUN chmod +x ./promptly-api-mac
+
+# Expose port (will be read from config.yaml at runtime)
+EXPOSE 8082
+
+# Command to run the application
+CMD ["./promptly-api-tg4", "serve", "--storage=sqlite"]

@@ -1,0 +1,6 @@
+dbs:
+  - path: /data/prompts.db # local SQLite DB inside container
+    replicas:
+      - type: s3
+        bucket: promptly-sqlite # replace with your S3 bucket
+        path: dbs/prompts.db # path/prefix in S3
