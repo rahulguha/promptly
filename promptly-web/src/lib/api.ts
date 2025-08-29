@@ -24,19 +24,37 @@ export interface Prompt {
   content: string;
 }
 
+// Define a type for our API request options that allows a structured body.
+type ApiRequestOptions = Omit<RequestInit, "body"> & {
+  body?: unknown;
+};
+
 async function apiRequest<T>(
   endpoint: string,
-  options: RequestInit & { body?: unknown } = {}
+  options: ApiRequestOptions = {}
 ): Promise<T> {
   const headers = new Headers(options.headers);
   headers.set("Accept", "application/json");
 
+  const fetchOptions: RequestInit = {
+    method: options.method,
+    headers: options.headers,
+    mode: options.mode,
+    credentials: options.credentials,
+    cache: options.cache,
+    redirect: options.redirect,
+    referrerPolicy: options.referrerPolicy,
+    signal: options.signal,
+  };
+
   if (options.body) {
-    options.body = JSON.stringify(options.body);
+    fetchOptions.body = JSON.stringify(options.body);
     headers.set("Content-Type", "application/json");
   }
 
-  const res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
+  fetchOptions.headers = headers;
+
+  const res = await fetch(`${API_BASE}${endpoint}`, fetchOptions);
 
   if (!res.ok) {
     let message = `HTTP error! status: ${res.status}`;
