@@ -1,6 +1,6 @@
 # Promptly
 
-[![Build Status](https://github.com/rahulguha/promptly/actions/workflows/ci.yml/badge.svg)](https://github.com/rahulguha/promptly/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Made with Go](https://img.shields.io/badge/Made%20with-Go-1f425f.svg)](https://go.dev/) ![Svelte](https://img.shields.io/badge/Svelte-%23FF3E00.svg?style=for-the-badge&logo=Svelte&logoColor=white) [![SQLite](https://img.shields.io/badge/SQLite-003B57?style=flat&logo=sqlite&logoColor=white)](https://www.sqlite.org/) [![litestream](https://img.shields.io/badge/litestream-36454F?logo=litestream)](https://litestream.io)
+[![Build Status](https://github.com/rahulguha/promptly/actions/workflows/ci.yml/badge.svg)](https://github.com/rahulguha/promptly/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Made with Go](https://img.shields.io/badge/Made%20with-Go-1f425f.svg)](https://go.dev/) ![Svelte](https://img.shields.io/badge/Svelte-%23FF3E00.svg?style=for-the-badge&logo=Svelte&logoColor=white) [![SQLite](https://img.shields.io/badge/SQLite-003B57?style=flat&logo=sqlite&logoColor=white)](https://www.sqlite.org/) [![litestream](https://img.shields.io/badge/litestream-36454F?logo=litestream)](https://litestream.io) ![Amazon S3](https://img.shields.io/badge/Amazon%20S3-FF9900?style=for-the-badge&logo=amazons3&logoColor=white)
 
 # Promptly
 
