@@ -1,6 +1,6 @@
 # Promptly
 
-![Build Status](https://github.com/rahulguha/promptly/actions/workflows/ci.yml/badge.svg)
+[![Build Status](https://github.com/rahulguha/promptly/actions/workflows/ci.yml/badge.svg)](https://github.com/rahulguha/promptly/actions/workflows/ci.yml) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Made with Go](https://img.shields.io/badge/Made%20with-Go-1f425f.svg)](https://go.dev/)
 
 # Promptly
 
