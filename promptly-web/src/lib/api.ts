@@ -1,3 +1,5 @@
+// In development, Vite's proxy will forward requests from /v1 to the API server.
+// In production, we assume the API is being served on the same host.
 const API_BASE = "/v1";
 
 export interface Persona {
@@ -22,111 +24,119 @@ export interface Prompt {
   content: string;
 }
 
+async function apiRequest<T>(
+  endpoint: string,
+  options: RequestInit & { body?: unknown } = {}
+): Promise<T> {
+  const headers = new Headers(options.headers);
+  headers.set("Accept", "application/json");
+
+  if (options.body) {
+    options.body = JSON.stringify(options.body);
+    headers.set("Content-Type", "application/json");
+  }
+
+  const res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
+
+  if (!res.ok) {
+    let message = `HTTP error! status: ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body.error) {
+        message = body.error;
+      }
+    } catch (e) {
+      // Not a JSON error response, or no body
+    }
+    throw new Error(message);
+  }
+
+  // For DELETE requests, we don't expect a JSON body in the success response.
+  if (options.method?.toUpperCase() === "DELETE" || res.status === 204) {
+    return undefined as T;
+  }
+
+  return res.json();
+}
+
 export const api = {
   // Personas
-  async getPersonas(): Promise<Persona[]> {
-    const res = await fetch(`${API_BASE}/personas`);
-    return res.json();
+  getPersonas(): Promise<Persona[]> {
+    return apiRequest("/personas");
   },
 
-  async createPersona(persona: Omit<Persona, "persona_id">): Promise<Persona> {
-    const res = await fetch(`${API_BASE}/personas`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(persona),
-    });
-    return res.json();
+  createPersona(persona: Omit<Persona, "persona_id">): Promise<Persona> {
+    return apiRequest("/personas", { method: "POST", body: persona });
   },
 
-  async updatePersona(id: string, persona: Omit<Persona, "persona_id">): Promise<Persona> {
-    const res = await fetch(`${API_BASE}/personas/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(persona),
-    });
-    return res.json();
+  updatePersona(
+    id: string,
+    persona: Omit<Persona, "persona_id">
+  ): Promise<Persona> {
+    return apiRequest(`/personas/${id}`, { method: "PUT", body: persona });
   },
 
-  async deletePersona(id: string): Promise<void> {
-    await fetch(`${API_BASE}/personas/${id}`, {
-      method: "DELETE",
-    });
+  deletePersona(id: string): Promise<void> {
+    return apiRequest(`/personas/${id}`, { method: "DELETE" });
   },
 
   // Templates
-  async getTemplates(): Promise<PromptTemplate[]> {
-    const res = await fetch(`${API_BASE}/templates`);
-    return res.json();
+  getTemplates(): Promise<PromptTemplate[]> {
+    return apiRequest("/templates");
   },
 
-  async createTemplate(
+  createTemplate(
     template: Omit<PromptTemplate, "id">
   ): Promise<PromptTemplate> {
-    const res = await fetch(`${API_BASE}/templates`, {
+    return apiRequest("/templates", { method: "POST", body: template });
+  },
+
+  updateTemplate(
+    id: string,
+    template: Omit<PromptTemplate, "id">
+  ): Promise<PromptTemplate> {
+    return apiRequest(`/templates/${id}`, { method: "PUT", body: template });
+  },
+
+  createTemplateVersion(
+    id: string,
+    template: Omit<PromptTemplate, "id" | "version">
+  ): Promise<PromptTemplate> {
+    return apiRequest(`/templates/${id}/version`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(template),
+      body: template,
     });
-    return res.json();
   },
 
-  async updateTemplate(id: string, template: Omit<PromptTemplate, "id">): Promise<PromptTemplate> {
-    const res = await fetch(`${API_BASE}/templates/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(template),
-    });
-    return res.json();
-  },
-
-  async createTemplateVersion(id: string, template: Omit<PromptTemplate, "id" | "version">): Promise<PromptTemplate> {
-    const res = await fetch(`${API_BASE}/templates/${id}/version`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(template),
-    });
-    return res.json();
-  },
-
-  async deleteTemplate(id: string, version: number): Promise<void> {
-    await fetch(`${API_BASE}/templates/${id}?version=${version}`, {
+  deleteTemplate(id: string, version: number): Promise<void> {
+    return apiRequest(`/templates/${id}?version=${version}`, {
       method: "DELETE",
     });
   },
 
   // Prompts
-  async generatePrompt(
+  generatePrompt(
     templateId: string,
     values: Record<string, string>
   ): Promise<Prompt> {
-    const res = await fetch(`${API_BASE}/generate-prompt`, {
+    return apiRequest("/generate-prompt", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+      body: {
         template_id: templateId,
         variable_values: values,
-      }),
+      },
     });
-    return res.json();
   },
 
-  async getPrompts(): Promise<Prompt[]> {
-    const res = await fetch(`${API_BASE}/prompts`);
-    return res.json();
+  getPrompts(): Promise<Prompt[]> {
+    return apiRequest("/prompts");
   },
 
-  async updatePrompt(id: string, prompt: Omit<Prompt, "id">): Promise<Prompt> {
-    const res = await fetch(`${API_BASE}/prompts/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(prompt),
-    });
-    return res.json();
+  updatePrompt(id: string, prompt: Omit<Prompt, "id">): Promise<Prompt> {
+    return apiRequest(`/prompts/${id}`, { method: "PUT", body: prompt });
   },
 
-  async deletePrompt(id: string): Promise<void> {
-    await fetch(`${API_BASE}/prompts/${id}`, {
-      method: "DELETE",
-    });
+  deletePrompt(id: string): Promise<void> {
+    return apiRequest(`/prompts/${id}`, { method: "DELETE" });
   },
 };

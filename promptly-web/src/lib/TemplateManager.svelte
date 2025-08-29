@@ -15,8 +15,12 @@
 	};
 
 	onMount(async () => {
-		templates = await api.getTemplates();
-		personas = await api.getPersonas();
+		try {
+			templates = await api.getTemplates();
+			personas = await api.getPersonas();
+		} catch (error) {
+			console.error('Failed to load data:', error);
+		}
 	});
 
 	function addVariable() {
@@ -28,13 +32,21 @@
 	}
 
 	async function createTemplate() {
-		const variables = newTemplate.variables.filter(v => v.trim());
-		const created = await api.createTemplate({
-			...newTemplate,
-			variables
-		});
-		templates = [...templates, created];
-		resetForm();
+		try {
+			const variables = newTemplate.variables.filter(v => v.trim());
+			const created = await api.createTemplate({
+				...newTemplate,
+				variables
+			});
+			if (created) {
+				templates = [...templates, created];
+				resetForm();
+			} else {
+				console.error('Failed to create template: No data returned');
+			}
+		} catch (error) {
+			console.error('Error creating template:', error);
+		}
 	}
 
 	async function updateTemplate() {
@@ -106,13 +118,13 @@
 		return persona ? `${persona.user_role_display} → ${persona.llm_role_display}` : 'Unknown';
 	}
 	
-	$: personaOptions = personas.map(persona => ({
+	$: personaOptions = personas ? personas.map(persona => ({
 		value: persona.persona_id,
 		display: `${persona.user_role_display} → ${persona.llm_role_display}`,
 		meta: `${persona.user_role} → ${persona.llm_role}`,
 		user_role: persona.user_role,
 		llm_role: persona.llm_role
-	}));
+	})) : [];
 </script>
 
 <div class="template-manager">

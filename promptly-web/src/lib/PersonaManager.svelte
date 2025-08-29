@@ -31,17 +31,29 @@
 			};
 		}) : [];
 	
-	$: uniqueUserRoles = [...new Set(personas.map(p => p.user_role_display))];
-	$: uniqueLLMRoles = [...new Set(personas.map(p => p.llm_role_display))];
+	$: uniqueUserRoles = personas ? [...new Set(personas.map(p => p.user_role_display))] : [];
+	$: uniqueLLMRoles = personas ? [...new Set(personas.map(p => p.llm_role_display))] : [];
 
 	onMount(async () => {
-		personas = await api.getPersonas();
+		try {
+			personas = await api.getPersonas();
+		} catch (error) {
+			console.error('Failed to load personas:', error);
+		}
 	});
 
 	async function createPersona() {
-		const created = await api.createPersona(newPersona);
-		personas = [...personas, created];
-		resetForm();
+		try {
+			const created = await api.createPersona(newPersona);
+			if (created) {
+				personas = [...personas, created];
+				resetForm();
+			} else {
+				console.error('Failed to create persona: No data returned');
+			}
+		} catch (error) {
+			console.error('Error creating persona:', error);
+		}
 	}
 
 	async function updatePersona() {

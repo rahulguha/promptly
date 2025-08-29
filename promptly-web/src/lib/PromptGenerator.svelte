@@ -24,7 +24,7 @@
 			templates = templatesData;
 			personas = personasData;
 			generatedPrompts = promptsData;
-			console.log('Loaded personas:', personas.length);
+			console.log('Loaded personas:', personas?.length || 0);
 		} catch (error) {
 			console.error('Failed to load data:', error);
 		}
@@ -58,15 +58,23 @@
 		e.preventDefault();
 		if (!selectedTemplateId) return;
 		
-		if (editingPrompt) {
-			await updatePrompt();
-		} else {
-			// Parse template ID from the compound value
-			const [templateId] = selectedTemplateId.split(':');
-			const prompt = await api.generatePrompt(templateId, variables);
-			generatedPrompts = [prompt, ...generatedPrompts];
-			variables = {};
-			selectedTemplateId = '';
+		try {
+			if (editingPrompt) {
+				await updatePrompt();
+			} else {
+				// Parse template ID from the compound value
+				const [templateId] = selectedTemplateId.split(':');
+				const prompt = await api.generatePrompt(templateId, variables);
+				if (prompt) {
+					generatedPrompts = [prompt, ...generatedPrompts];
+					variables = {};
+					selectedTemplateId = '';
+				} else {
+					console.error('Failed to generate prompt: No data returned');
+				}
+			}
+		} catch (error) {
+			console.error('Error generating prompt:', error);
 		}
 	}
 
@@ -111,8 +119,8 @@ ${template.template}`;
 		alert(details);
 	}
 	
-	$: templateOptions = templates.map(template => {
-		const persona = personas.find(p => p.persona_id === template.persona_id);
+	$: templateOptions = templates ? templates.map(template => {
+		const persona = personas ? personas.find(p => p.persona_id === template.persona_id) : null;
 		return {
 			value: `${template.id}:${template.version}`,
 			display: persona ? `${persona.user_role_display} → ${persona.llm_role_display} (v${template.version})` : 'Unknown Persona',
@@ -120,7 +128,7 @@ ${template.template}`;
 			user_role: persona?.user_role || 'unknown',
 			llm_role: persona?.llm_role || 'unknown'
 		};
-	});
+	}) : [];
 
 	$: filterOptions = [
 		{ value: '', display: 'All Templates', meta: 'Show all prompts', user_role: 'all', llm_role: 'all' },
