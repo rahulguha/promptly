@@ -10,14 +10,19 @@ export interface Persona {
 
 export interface PromptTemplate {
   id: string;
+  name: string;
   persona_id: string;
   version: number;
+  meta_role: string;
+  task: string;
+  answer_guideline: string;
   template: string;
   variables: string[];
 }
 
 export interface Prompt {
   id: string;
+  name: string;
   template_id: string;
   template_version: number;
   variable_values: Record<string, string>;
@@ -135,12 +140,14 @@ export const api = {
   // Prompts
   generatePrompt(
     templateId: string,
+    name: string,
     values: Record<string, string>
   ): Promise<Prompt> {
     return apiRequest("/generate-prompt", {
       method: "POST",
       body: {
         template_id: templateId,
+        name: name,
         variable_values: values,
       },
     });

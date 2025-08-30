@@ -3,6 +3,7 @@ package routes
 import (
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -10,6 +11,23 @@ import (
 	"github.com/rahulguha/promptly/internal/models"
 	"github.com/rahulguha/promptly/internal/storage"
 )
+
+func extractVariables(text string) []string {
+	re := regexp.MustCompile(`\{\{([a-zA-Z0-9_]+)\}\}`)
+
+	matches := re.FindAllStringSubmatch(text, -1)
+
+	vars := make(map[string]bool)
+	for _, match := range matches {
+		vars[match[1]] = true
+	}
+
+	uniqueVars := make([]string, 0, len(vars))
+	for v := range vars {
+		uniqueVars = append(uniqueVars, v)
+	}
+	return uniqueVars
+}
 
 // Handler contains the dependencies for HTTP handlers
 type Handler struct {
@@ -133,6 +151,38 @@ func (h *Handler) GetTemplate(c *gin.Context) {
 
 	c.JSON(http.StatusOK, template)
 }
+// BuildMetaPrompt constructs a meta prompt given user and LLM roles
+func BuildMetaPrompt(userRole, llmRole string) string {
+    return fmt.Sprintf(`
+I am a %s.
+You are a %s. 
+Please respond clearly, in a way that fits my background as a %s, 
+while staying in your role as a %s.
+`, userRole, llmRole, userRole, llmRole)
+}
+
+func buildTemplate(metaRole, task, answerGuideline string) string {
+	var sb strings.Builder
+
+	if metaRole != "" {
+		sb.WriteString("[Meta Role]\n")
+		sb.WriteString(metaRole)
+		sb.WriteString("\n\n")
+	}
+
+	if task != "" {
+		sb.WriteString("[Task]\n")
+		sb.WriteString(task)
+		sb.WriteString("\n\n")
+	}
+
+	if answerGuideline != "" {
+		sb.WriteString("[Answer Guideline]\n")
+		sb.WriteString(answerGuideline)
+	}
+
+	return sb.String()
+}
 
 // CreateTemplate handles POST /templates
 func (h *Handler) CreateTemplate(c *gin.Context) {
@@ -150,9 +200,30 @@ func (h *Handler) CreateTemplate(c *gin.Context) {
 	}
 
 	// Prepend persona context with actual values
-	personaContext := fmt.Sprintf("User is a %s and wants LLM to play the role of %s. ", 
-		persona.UserRoleDisplay, persona.LLMRoleDisplay)
-	template.Template = personaContext + template.Template
+	metaRole := BuildMetaPrompt(persona.UserRoleDisplay, persona.LLMRoleDisplay)
+	template.MetaRole = metaRole
+
+	template.Template = buildTemplate(template.MetaRole, template.Task, template.AnswerGuideline)
+
+	// Extract variables from task and answer guideline
+	taskVars := extractVariables(template.Task)
+	guidelineVars := extractVariables(template.AnswerGuideline)
+
+	// Combine and get unique variables
+	allVars := make(map[string]bool)
+	for _, v := range taskVars {
+		allVars[v] = true
+	}
+	for _, v := range guidelineVars {
+		allVars[v] = true
+	}
+
+	uniqueVars := make([]string, 0, len(allVars))
+	for v := range allVars {
+	
+uniqueVars = append(uniqueVars, v)
+	}
+	template.Variables = uniqueVars
 
 	createdTemplate, err := h.Store.CreateTemplate(&template)
 	if err != nil {
@@ -162,6 +233,7 @@ func (h *Handler) CreateTemplate(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, createdTemplate)
 }
+
 
 // UpdateTemplate handles PUT /templates/:id
 func (h *Handler) UpdateTemplate(c *gin.Context) {
@@ -179,6 +251,40 @@ func (h *Handler) UpdateTemplate(c *gin.Context) {
 	}
 
 	template.ID = id
+
+	// Get persona to populate display roles
+	persona, err := h.Store.GetPersonaByID(template.PersonaID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid persona_id: persona not found"})
+		return
+	}
+
+	// Prepend persona context with actual values
+	metaRole := BuildMetaPrompt(persona.UserRoleDisplay, persona.LLMRoleDisplay)
+	template.MetaRole = metaRole
+
+	template.Template = buildTemplate(template.MetaRole, template.Task, template.AnswerGuideline)
+
+	// Extract variables from task and answer guideline
+	taskVars := extractVariables(template.Task)
+	guidelineVars := extractVariables(template.AnswerGuideline)
+
+	// Combine and get unique variables
+	allVars := make(map[string]bool)
+	for _, v := range taskVars {
+		allVars[v] = true
+	}
+	for _, v := range guidelineVars {
+		allVars[v] = true
+	}
+
+	uniqueVars := make([]string, 0, len(allVars))
+	for v := range allVars {
+	
+uniqueVars = append(uniqueVars, v)
+	}
+	template.Variables = uniqueVars
+
 	updatedTemplate, err := h.Store.UpdateTemplate(&template)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -204,6 +310,40 @@ func (h *Handler) CreateTemplateVersion(c *gin.Context) {
 	}
 
 	template.ID = id
+
+	// Get persona to populate display roles
+	persona, err := h.Store.GetPersonaByID(template.PersonaID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid persona_id: persona not found"})
+		return
+	}
+
+	// Prepend persona context with actual values
+	metaRole := BuildMetaPrompt(persona.UserRoleDisplay, persona.LLMRoleDisplay)
+	template.MetaRole = metaRole
+
+	template.Template = buildTemplate(template.MetaRole, template.Task, template.AnswerGuideline)
+
+	// Extract variables from task and answer guideline
+	taskVars := extractVariables(template.Task)
+	guidelineVars := extractVariables(template.AnswerGuideline)
+
+	// Combine and get unique variables
+	allVars := make(map[string]bool)
+	for _, v := range taskVars {
+		allVars[v] = true
+	}
+	for _, v := range guidelineVars {
+		allVars[v] = true
+	}
+
+	uniqueVars := make([]string, 0, len(allVars))
+	for v := range allVars {
+	
+uniqueVars = append(uniqueVars, v)
+	}
+	template.Variables = uniqueVars
+
 	newVersion, err := h.Store.CreateTemplateVersion(&template)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -245,8 +385,10 @@ func (h *Handler) DeleteTemplate(c *gin.Context) {
 
 // GeneratePromptRequest represents the request for generating a prompt
 type GeneratePromptRequest struct {
-	TemplateID uuid.UUID         `json:"template_id" binding:"required"`
-	Values     map[string]string `json:"variable_values" binding:"required"`
+	TemplateID      uuid.UUID         `json:"template_id" binding:"required"`
+	TemplateVersion int               `json:"template_version"`
+	Name            string            `json:"name"`
+	Values          map[string]string `json:"variable_values" binding:"required"`
 }
 
 // GeneratePrompt handles POST /generate-prompt
@@ -281,6 +423,7 @@ func (h *Handler) GeneratePrompt(c *gin.Context) {
 
 	// Create new prompt with rendered content
 	prompt := &models.Prompt{
+		Name:            req.Name,
 		TemplateID:      req.TemplateID,
 		TemplateVersion: template.Version,
 		Values:          filteredValues,

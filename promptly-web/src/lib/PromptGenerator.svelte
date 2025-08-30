@@ -9,6 +9,7 @@
 	let selectedTemplateId = '';
 	let selectedTemplateVersion = 1;
 	let variables: Record<string, string> = {};
+	let promptName = '';
 	let selectedTemplate: PromptTemplate | null = null;
 	let editingPrompt: Prompt | null = null;
 	let showEditForm = false;
@@ -22,6 +23,7 @@
 				api.getPrompts()
 			]);
 			templates = templatesData;
+			console.log('Loaded templates:', templates);
 			personas = personasData;
 			generatedPrompts = promptsData;
 			console.log('Loaded personas:', personas?.length || 0);
@@ -32,19 +34,21 @@
 
 	$: {
 		if (selectedTemplateId) {
+			console.log('selectedTemplateId:', selectedTemplateId);
 			// Parse the compound value (id:version)
 			const [templateId, versionStr] = selectedTemplateId.split(':');
 			const version = parseInt(versionStr);
 			selectedTemplateVersion = version;
+			console.log('Searching for template with id:', templateId, 'and version:', version);
 			
 			selectedTemplate = templates.find(t => t.id === templateId && t.version === version) || null;
+			console.log('selectedTemplate:', selectedTemplate);
+
 			if (selectedTemplate) {
 				// Initialize variables object
 				variables = {};
 				selectedTemplate.variables.forEach(v => {
-					if (v !== 'user_role_display' && v !== 'llm_role_display') {
 						variables[v] = '';
-					}
 				});
 			}
 		} else {
@@ -64,11 +68,12 @@
 			} else {
 				// Parse template ID from the compound value
 				const [templateId] = selectedTemplateId.split(':');
-				const prompt = await api.generatePrompt(templateId, variables);
+				const prompt = await api.generatePrompt(templateId, promptName, variables);
 				if (prompt) {
 					generatedPrompts = [prompt, ...generatedPrompts];
 					variables = {};
 					selectedTemplateId = '';
+					promptName = '';
 				} else {
 					console.error('Failed to generate prompt: No data returned');
 				}
@@ -123,7 +128,7 @@ ${template.template}`;
 		const persona = personas ? personas.find(p => p.persona_id === template.persona_id) : null;
 		return {
 			value: `${template.id}:${template.version}`,
-			display: persona ? `${persona.user_role_display} → ${persona.llm_role_display} (v${template.version})` : 'Unknown Persona',
+			display: template.name ? `${template.name} (v${template.version})` : (persona ? `${persona.user_role_display} → ${persona.llm_role_display} (v${template.version})` : 'Unknown Persona'),
 			meta: template.template.slice(0, 60) + '...',
 			user_role: persona?.user_role || 'unknown',
 			llm_role: persona?.llm_role || 'unknown'
@@ -159,6 +164,7 @@ ${template.template}`;
 		editingPrompt = prompt;
 		selectedTemplateId = `${prompt.template_id}:${prompt.template_version}`;
 		variables = { ...prompt.variable_values || {} };
+		promptName = prompt.name;
 		showEditForm = true;
 	}
 
@@ -190,6 +196,7 @@ ${template.template}`;
 		showEditForm = false;
 		variables = {};
 		selectedTemplateId = '';
+		promptName = '';
 	}
 </script>
 
@@ -209,15 +216,18 @@ ${template.template}`;
 				<pre>{selectedTemplate.template}</pre>
 			</div>
 
+			<div class="prompt-name-input">
+				<label>Prompt Name:</label>
+				<input bind:value={promptName} placeholder="Enter prompt name" required />
+			</div>
+
 			<div class="variables-form">
 				<h4>Variables</h4>
 				{#each selectedTemplate.variables as variable}
-					{#if variable !== 'user_role_display' && variable !== 'llm_role_display'}
-						<div class="variable-input">
-							<label>{variable}:</label>
-							<input bind:value={variables[variable]} placeholder={`Enter ${variable}`} />
-						</div>
-					{/if}
+					<div class="variable-input">
+						<label>{variable}:</label>
+						<input bind:value={variables[variable]} placeholder={`Enter ${variable}`} />
+					</div>
 				{/each}
 			</div>
 
@@ -254,7 +264,7 @@ ${template.template}`;
 								{getTemplateDisplay(prompt.template_id, prompt.template_version)}
 							</button>
 						</small>
-						<small><strong>ID:</strong> {prompt.id}</small>
+						<small><strong>Name:</strong> {prompt.name}</small>
 					</div>
 					<div class="prompt-actions">
 						<button class="icon-btn edit-btn" onclick={() => editPrompt(prompt)} title="Edit">
@@ -329,6 +339,25 @@ ${template.template}`;
 	}
 	
 	.variable-input input {
+		flex: 1;
+		padding: 8px;
+		border: 1px solid #ccc;
+		border-radius: 4px;
+	}
+
+	.prompt-name-input {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		margin: 15px 0;
+	}
+
+	.prompt-name-input label {
+		min-width: 100px;
+		font-weight: bold;
+	}
+
+	.prompt-name-input input {
 		flex: 1;
 		padding: 8px;
 		border: 1px solid #ccc;

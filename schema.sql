@@ -12,24 +12,28 @@ CREATE TABLE IF NOT EXISTS personas (
 
 -- Prompt templates table - stores reusable prompt templates with variables
 CREATE TABLE IF NOT EXISTS prompt_templates (
-    id TEXT PRIMARY KEY,
+    id TEXT NOT NULL,
     persona_id TEXT NOT NULL,
+    version INTEGER NOT NULL DEFAULT 1,
     template TEXT NOT NULL,
     variables TEXT NOT NULL, -- JSON array of variable names
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id, version),
     FOREIGN KEY (persona_id) REFERENCES personas(id) ON DELETE CASCADE
 );
 
--- Prompts table - stores generated prompts from templates
 CREATE TABLE IF NOT EXISTS prompts (
     id TEXT PRIMARY KEY,
     template_id TEXT NOT NULL,
+    template_version INTEGER NOT NULL,
     variable_values TEXT NOT NULL, -- JSON object with variable values
-    content TEXT NOT NULL, -- Final generated prompt content
+    content TEXT NOT NULL,         -- Final generated prompt content
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (template_id) REFERENCES prompt_templates(id) ON DELETE CASCADE
+    FOREIGN KEY (template_id, template_version)
+        REFERENCES prompt_templates(id, version)
+        ON DELETE CASCADE
 );
 
 -- Indexes for better query performance

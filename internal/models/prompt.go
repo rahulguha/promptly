@@ -10,15 +10,20 @@ type Persona struct {
 }
 
 type PromptTemplate struct {
-    ID        uuid.UUID `json:"id"`
-    PersonaID uuid.UUID `json:"persona_id"`
-    Version   int       `json:"version"`
-    Template  string    `json:"template"`
-    Variables []string  `json:"variables"`
+	ID              uuid.UUID `json:"id"`
+	Name            string    `json:"name"`
+	PersonaID       uuid.UUID `json:"persona_id"`
+	Version         int       `json:"version"`
+	MetaRole        string    `json:"meta_role"`
+	Task            string    `json:"task"`
+	AnswerGuideline string    `json:"answer_guideline"`
+	Template        string    `json:"template"`
+	Variables       []string  `json:"variables"`
 }
 
 type Prompt struct {
     ID              uuid.UUID         `json:"id"`
+    Name            string            `json:"name"`
     TemplateID      uuid.UUID         `json:"template_id"`
     TemplateVersion int               `json:"template_version"`
     Values          map[string]string `json:"variable_values"`

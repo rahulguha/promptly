@@ -9,10 +9,36 @@
 	let editingTemplate: PromptTemplate | null = null;
 	let creatingVersion = false;
 	let newTemplate = {
+		name: '',
 		persona_id: '',
-		template: '',
+		task: '',
+		answer_guideline: '',
 		variables: ['']
 	};
+
+	let calculatedTemplate = '';
+
+	$: {
+		const selectedPersona = personas.find(p => p.persona_id === newTemplate.persona_id);
+		const metaRole = selectedPersona ? `I am a ${selectedPersona.user_role_display}.\nYou are a ${selectedPersona.llm_role_display}. 
+Please respond clearly, in a way that fits my background as a ${selectedPersona.user_role_display}, 
+while staying in your role as a ${selectedPersona.llm_role_display}.` : '';
+		
+		let templateParts = [];
+		if (metaRole) {
+			templateParts.push(`[Meta Role]
+${metaRole}`);
+		}
+		if (newTemplate.task) {
+			templateParts.push(`[Task]
+${newTemplate.task}`);
+		}
+		if (newTemplate.answer_guideline) {
+			templateParts.push(`[Answer Guideline]
+${newTemplate.answer_guideline}`);
+		}
+		calculatedTemplate = templateParts.join('\n\n');
+	}
 
 	onMount(async () => {
 		try {
@@ -58,7 +84,8 @@
 			// Create new version
 			updated = await api.createTemplateVersion(editingTemplate.id, {
 				persona_id: newTemplate.persona_id,
-				template: newTemplate.template,
+				task: newTemplate.task,
+				answer_guideline: newTemplate.answer_guideline,
 				variables
 			});
 			templates = [...templates, updated];
@@ -67,7 +94,8 @@
 			updated = await api.updateTemplate(editingTemplate.id, {
 				persona_id: newTemplate.persona_id,
 				version: editingTemplate.version,
-				template: newTemplate.template,
+				task: newTemplate.task,
+				answer_guideline: newTemplate.answer_guideline,
 				variables
 			});
 			templates = templates.map(t => t.id === updated.id && t.version === updated.version ? updated : t);
@@ -88,8 +116,10 @@
 		editingTemplate = template;
 		creatingVersion = false;
 		newTemplate = {
+			name: template.name,
 			persona_id: template.persona_id,
-			template: template.template,
+			task: template.task,
+			answer_guideline: template.answer_guideline,
 			variables: [...template.variables]
 		};
 		showForm = true;
@@ -99,15 +129,17 @@
 		editingTemplate = template;
 		creatingVersion = true;
 		newTemplate = {
+			name: template.name,
 			persona_id: template.persona_id,
-			template: template.template,
+			task: template.task,
+			answer_guideline: template.answer_guideline,
 			variables: [...template.variables]
 		};
 		showForm = true;
 	}
 
 	function resetForm() {
-		newTemplate = { persona_id: '', template: '', variables: [''] };
+		newTemplate = { name: '', persona_id: '', task: '', answer_guideline: '', variables: [''] };
 		editingTemplate = null;
 		creatingVersion = false;
 		showForm = false;
@@ -147,6 +179,8 @@
 			</h3>
 		</div>
 		<form onsubmit={(e) => { e.preventDefault(); editingTemplate ? updateTemplate() : createTemplate(); }} class="template-form">
+			<input type="text" bind:value={newTemplate.name} placeholder="Template Name" required />
+
 			<RichDropdown 
 				items={personaOptions}
 				bind:selectedValue={newTemplate.persona_id}
@@ -154,8 +188,15 @@
 			/>
 
 			<textarea 
-				bind:value={newTemplate.template} 
-				placeholder="Template content (e.g., Review this {'{'}language{'}'} code: {'{'}code{'}'})"
+				bind:value={newTemplate.task} 
+				placeholder="Task"
+				rows="4"
+				required
+			></textarea>
+
+			<textarea 
+				bind:value={newTemplate.answer_guideline} 
+				placeholder="Answer Guideline"
 				rows="4"
 				required
 			></textarea>
@@ -169,6 +210,11 @@
 					</div>
 				{/each}
 				<button type="button" onclick={addVariable}>Add Variable</button>
+			</div>
+
+			<div class="readonly-template">
+				<h4>Generated Template</h4>
+				<pre>{calculatedTemplate}</pre>
 			</div>
 
 			<button type="submit">
@@ -201,7 +247,7 @@
 					</button>
 				</div>
 				<div class="template-display">
-					<div class="template-version">v{template.version}</div>
+					<div class="template-name">{template.name} <span class="template-version">v{template.version}</span></div>
 					<!-- <div class="template-persona">{getPersonaDisplay(template.persona_id)}</div> -->
 					<div class="template-preview">{template.template.slice(0, 80)}...</div>
 				</div>
@@ -258,6 +304,18 @@
 		border: 1px solid #ccc;
 		border-radius: 4px;
 	}
+
+	.readonly-template {
+		border: 1px solid #eee;
+		padding: 15px;
+		border-radius: 4px;
+		background-color: #f8f8f8;
+	}
+
+	.readonly-template pre {
+		white-space: pre-wrap;
+		word-wrap: break-word;
+	}
 	
 	.templates-list {
 		margin-top: 20px;
@@ -285,11 +343,17 @@
 		flex: 1;
 	}
 	
+	.template-name {
+		font-size: 14px;
+		font-weight: bold;
+		color: #007cba;
+		margin-bottom: 4px;
+	}
+
 	.template-version {
 		font-size: 12px;
-		font-weight: bold;
+		font-weight: normal;
 		color: #28a745;
-		margin-bottom: 2px;
 	}
 
 	.template-persona {

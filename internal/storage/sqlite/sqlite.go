@@ -65,8 +65,12 @@ func (s *SQLiteStorage) initSchema() error {
 	-- Prompt templates table - stores reusable prompt templates with variables
 	CREATE TABLE IF NOT EXISTS prompt_templates (
 		id TEXT PRIMARY KEY,
+		name TEXT,
 		persona_id TEXT NOT NULL,
 		version INTEGER NOT NULL DEFAULT 1,
+		meta_role TEXT,
+		task TEXT,
+		answer_guideline TEXT,
 		template TEXT NOT NULL,
 		variables TEXT NOT NULL, -- JSON array of variable names
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -77,6 +81,7 @@ func (s *SQLiteStorage) initSchema() error {
 	-- Prompts table - stores generated prompts from templates
 	CREATE TABLE IF NOT EXISTS prompts (
 		id TEXT PRIMARY KEY,
+		name TEXT,
 		template_id TEXT NOT NULL,
 		template_version INTEGER NOT NULL DEFAULT 1,
 		variable_values TEXT NOT NULL, -- JSON object with variable values
@@ -218,8 +223,8 @@ func (s *SQLiteStorage) CreateTemplate(template *models.PromptTemplate) (*models
 		return nil, fmt.Errorf("failed to marshal variables: %w", err)
 	}
 
-	query := `INSERT INTO prompt_templates (id, persona_id, version, template, variables) VALUES (?, ?, ?, ?, ?)`
-	_, err = s.db.Exec(query, template.ID.String(), template.PersonaID.String(), template.Version, template.Template, string(variablesJSON))
+	query := `INSERT INTO prompt_templates (id, name, persona_id, version, meta_role, task, answer_guideline, template, variables) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	_, err = s.db.Exec(query, template.ID.String(), template.Name, template.PersonaID.String(), template.Version, template.MetaRole, template.Task, template.AnswerGuideline, template.Template, string(variablesJSON))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create template: %w", err)
 	}
@@ -231,7 +236,7 @@ func (s *SQLiteStorage) GetAllTemplates() ([]*models.PromptTemplate, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	query := `SELECT id, persona_id, version, template, variables FROM prompt_templates ORDER BY created_at`
+	query := `SELECT id, name, persona_id, version, meta_role, task, answer_guideline, template, variables FROM prompt_templates ORDER BY created_at`
 	rows, err := s.db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query templates: %w", err)
@@ -242,7 +247,7 @@ func (s *SQLiteStorage) GetAllTemplates() ([]*models.PromptTemplate, error) {
 	for rows.Next() {
 		var template models.PromptTemplate
 		var idStr, personaIDStr, variablesJSON string
-		err := rows.Scan(&idStr, &personaIDStr, &template.Version, &template.Template, &variablesJSON)
+		err := rows.Scan(&idStr, &template.Name, &personaIDStr, &template.Version, &template.MetaRole, &template.Task, &template.AnswerGuideline, &template.Template, &variablesJSON)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan template: %w", err)
 		}
@@ -266,8 +271,8 @@ func (s *SQLiteStorage) GetTemplateByID(id uuid.UUID) (*models.PromptTemplate, e
 
 	var template models.PromptTemplate
 	var idStr, personaIDStr, variablesJSON string
-	query := `SELECT id, persona_id, version, template, variables FROM prompt_templates WHERE id = ? ORDER BY version DESC LIMIT 1`
-	err := s.db.QueryRow(query, id.String()).Scan(&idStr, &personaIDStr, &template.Version, &template.Template, &variablesJSON)
+	query := `SELECT id, name, persona_id, version, meta_role, task, answer_guideline, template, variables FROM prompt_templates WHERE id = ? ORDER BY version DESC LIMIT 1`
+	err := s.db.QueryRow(query, id.String()).Scan(&idStr, &template.Name, &personaIDStr, &template.Version, &template.MetaRole, &template.Task, &template.AnswerGuideline, &template.Template, &variablesJSON)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("template not found")
 	}
@@ -295,8 +300,8 @@ func (s *SQLiteStorage) UpdateTemplate(template *models.PromptTemplate) (*models
 		return nil, fmt.Errorf("failed to marshal variables: %w", err)
 	}
 
-	query := `UPDATE prompt_templates SET persona_id = ?, template = ?, variables = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ?`
-	result, err := s.db.Exec(query, template.PersonaID.String(), template.Template, string(variablesJSON), template.ID.String(), template.Version)
+	query := `UPDATE prompt_templates SET name = ?, persona_id = ?, meta_role = ?, task = ?, answer_guideline = ?, template = ?, variables = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND version = ?`
+	result, err := s.db.Exec(query, template.Name, template.PersonaID.String(), template.MetaRole, template.Task, template.AnswerGuideline, template.Template, string(variablesJSON), template.ID.String(), template.Version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update template: %w", err)
 	}
@@ -335,8 +340,8 @@ func (s *SQLiteStorage) CreateTemplateVersion(template *models.PromptTemplate) (
 		return nil, fmt.Errorf("failed to marshal variables: %w", err)
 	}
 
-	query := `INSERT INTO prompt_templates (id, persona_id, version, template, variables) VALUES (?, ?, ?, ?, ?)`
-	_, err = s.db.Exec(query, template.ID.String(), template.PersonaID.String(), template.Version, template.Template, string(variablesJSON))
+	query := `INSERT INTO prompt_templates (id, name, persona_id, version, meta_role, task, answer_guideline, template, variables) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	_, err = s.db.Exec(query, template.ID.String(), template.Name, template.PersonaID.String(), template.Version, template.MetaRole, template.Task, template.AnswerGuideline, template.Template, string(variablesJSON))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new template version: %w", err)
 	}
@@ -377,8 +382,8 @@ func (s *SQLiteStorage) Create(prompt *models.Prompt) (*models.Prompt, error) {
 		return nil, fmt.Errorf("failed to marshal values: %w", err)
 	}
 
-	query := `INSERT INTO prompts (id, template_id, template_version, variable_values, content) VALUES (?, ?, ?, ?, ?)`
-	_, err = s.db.Exec(query, prompt.ID.String(), prompt.TemplateID.String(), prompt.TemplateVersion, string(valuesJSON), prompt.Content)
+	query := `INSERT INTO prompts (id, name, template_id, template_version, variable_values, content) VALUES (?, ?, ?, ?, ?, ?)`
+	_, err = s.db.Exec(query, prompt.ID.String(), prompt.Name, prompt.TemplateID.String(), prompt.TemplateVersion, string(valuesJSON), prompt.Content)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create prompt: %w", err)
 	}
@@ -390,7 +395,7 @@ func (s *SQLiteStorage) GetAll() ([]*models.Prompt, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	query := `SELECT id, template_id, template_version, variable_values, content FROM prompts ORDER BY created_at`
+	query := `SELECT id, name, template_id, template_version, variable_values, content FROM prompts ORDER BY created_at`
 	rows, err := s.db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query prompts: %w", err)
@@ -401,7 +406,7 @@ func (s *SQLiteStorage) GetAll() ([]*models.Prompt, error) {
 	for rows.Next() {
 		var prompt models.Prompt
 		var idStr, templateIDStr, valuesJSON string
-		err := rows.Scan(&idStr, &templateIDStr, &prompt.TemplateVersion, &valuesJSON, &prompt.Content)
+		err := rows.Scan(&idStr, &prompt.Name, &templateIDStr, &prompt.TemplateVersion, &valuesJSON, &prompt.Content)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan prompt: %w", err)
 		}
@@ -425,8 +430,8 @@ func (s *SQLiteStorage) GetByID(id uuid.UUID) (*models.Prompt, error) {
 
 	var prompt models.Prompt
 	var idStr, templateIDStr, valuesJSON string
-	query := `SELECT id, template_id, template_version, variable_values, content FROM prompts WHERE id = ?`
-	err := s.db.QueryRow(query, id.String()).Scan(&idStr, &templateIDStr, &prompt.TemplateVersion, &valuesJSON, &prompt.Content)
+	query := `SELECT id, name, template_id, template_version, variable_values, content FROM prompts WHERE id = ?`
+	err := s.db.QueryRow(query, id.String()).Scan(&idStr, &prompt.Name, &templateIDStr, &prompt.TemplateVersion, &valuesJSON, &prompt.Content)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("prompt not found")
 	}
@@ -453,8 +458,8 @@ func (s *SQLiteStorage) Update(prompt *models.Prompt) (*models.Prompt, error) {
 		return nil, fmt.Errorf("failed to marshal values: %w", err)
 	}
 
-	query := `UPDATE prompts SET template_id = ?, template_version = ?, variable_values = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-	result, err := s.db.Exec(query, prompt.TemplateID.String(), prompt.TemplateVersion, string(valuesJSON), prompt.Content, prompt.ID.String())
+	query := `UPDATE prompts SET name = ?, template_id = ?, template_version = ?, variable_values = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+	result, err := s.db.Exec(query, prompt.Name, prompt.TemplateID.String(), prompt.TemplateVersion, string(valuesJSON), prompt.Content, prompt.ID.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to update prompt: %w", err)
 	}
@@ -495,7 +500,7 @@ func (s *SQLiteStorage) GetTemplatesByPersonaID(personaID uuid.UUID) ([]*models.
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	query := `SELECT id, persona_id, version, template, variables FROM prompt_templates WHERE persona_id = ? ORDER BY created_at`
+	query := `SELECT id, name, persona_id, version, meta_role, task, answer_guideline, template, variables FROM prompt_templates WHERE persona_id = ? ORDER BY created_at`
 	rows, err := s.db.Query(query, personaID.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to query templates by persona: %w", err)
@@ -506,7 +511,7 @@ func (s *SQLiteStorage) GetTemplatesByPersonaID(personaID uuid.UUID) ([]*models.
 	for rows.Next() {
 		var template models.PromptTemplate
 		var idStr, personaIDStr, variablesJSON string
-		err := rows.Scan(&idStr, &personaIDStr, &template.Version, &template.Template, &variablesJSON)
+		err := rows.Scan(&idStr, &template.Name, &personaIDStr, &template.Version, &template.MetaRole, &template.Task, &template.AnswerGuideline, &template.Template, &variablesJSON)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan template: %w", err)
 		}
