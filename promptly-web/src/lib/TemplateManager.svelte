@@ -92,6 +92,7 @@ ${newTemplate.answer_guideline}`);
 		} else {
 			// Update existing template
 			updated = await api.updateTemplate(editingTemplate.id, {
+				name: newTemplate.name,
 				persona_id: newTemplate.persona_id,
 				version: editingTemplate.version,
 				task: newTemplate.task,
