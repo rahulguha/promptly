@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/rahulguha/promptly/internal/config"
 	"github.com/rahulguha/promptly/internal/models"
 	"github.com/rahulguha/promptly/internal/storage"
 )
@@ -32,6 +33,7 @@ func extractVariables(text string) []string {
 // Handler contains the dependencies for HTTP handlers
 type Handler struct {
 	Store storage.Storage
+	Cfg   *config.Config
 }
 
 // GetPrompts handles GET /prompts
@@ -528,3 +530,4 @@ func (h *Handler) DeletePersona(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Persona deleted successfully"})
 }
+

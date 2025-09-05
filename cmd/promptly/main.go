@@ -8,6 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/joho/godotenv"
+	"github.com/rahulguha/promptly/internal/config"
 	"github.com/rahulguha/promptly/internal/routes"
 	"github.com/rahulguha/promptly/internal/storage"
 )
@@ -56,6 +58,11 @@ func init() {
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
+	// Load .env file
+	if err := godotenv.Load(); err != nil {
+		fmt.Fprintln(os.Stderr, "No .env file found, reading from environment")
+	}
+
 	if cfgFile != "" {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
@@ -81,8 +88,13 @@ func initConfig() {
 }
 
 func startServer() {
-	// Get configuration from flags/config
-	port := viper.GetString("port")
+	// Initialize configuration
+	cfg, err := config.New()
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
+	}
+
+	// Get storage configuration from flags/config
 	storageTypeStr := viper.GetString("storage")
 	dataPath := viper.GetString("data")
 	dbPath := viper.GetString("db")
@@ -115,14 +127,14 @@ func startServer() {
 	}
 	defer store.Close()
 
-	handler := &routes.Handler{Store: store}
+handler := &routes.Handler{Store: store, Cfg: cfg}
 
 	// Setup Gin router
 	r := gin.Default()
 	routes.RegisterRoutes(r, handler)
 
 	// Start server
-	fmt.Printf("Starting Promptly server on port %s\n", port)
+	fmt.Printf("Starting Promptly server on port %s\n", cfg.Port)
 	fmt.Printf("Using %s storage\n", storageType)
 	if storageType == storage.StorageTypeJSON {
 		fmt.Printf("Data file: %s\n", dataPath)
@@ -130,7 +142,7 @@ func startServer() {
 		fmt.Printf("Database: %s\n", dbPath)
 	}
 
-	if err := r.Run(":" + port); err != nil {
+	if err := r.Run(":" + cfg.Port); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
 }
