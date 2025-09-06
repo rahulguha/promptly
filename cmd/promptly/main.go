@@ -49,7 +49,7 @@ func init() {
 	serveCmd.Flags().StringP("data", "d", "data/prompts.json", "Path to data file")
 	viper.BindPFlag("data", serveCmd.Flags().Lookup("data"))
 
-	serveCmd.Flags().StringP("storage", "s", "json", "Storage backend type (json or sqlite)")
+	serveCmd.Flags().StringP("storage", "s", "sqlite", "Storage backend type (json or sqlite)")
 	viper.BindPFlag("storage", serveCmd.Flags().Lookup("storage"))
 
 	serveCmd.Flags().String("db", "data/promptly.db", "Path to SQLite database file (used when --storage=sqlite)")
@@ -127,7 +127,13 @@ func startServer() {
 	}
 	defer store.Close()
 
-handler := &routes.Handler{Store: store, Cfg: cfg}
+	// Initialize profile storage
+	profileStore, err := storage.NewProfileStorage(config)
+	if err != nil {
+		log.Fatalf("Failed to initialize %s profile storage: %v", storageType, err)
+	}
+
+	handler := &routes.Handler{Store: store, ProfileStore: profileStore, Cfg: cfg}
 
 	// Setup Gin router
 	r := gin.Default()

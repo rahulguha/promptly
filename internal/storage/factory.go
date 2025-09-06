@@ -42,6 +42,19 @@ func NewStorage(config StorageConfig) (Storage, error) {
 	}
 }
 
+// NewProfileStorage creates a new profile storage instance based on the provided configuration
+func NewProfileStorage(config StorageConfig) (ProfileStorage, error) {
+	switch config.Type {
+	case StorageTypeSQLite:
+		if config.DBPath == "" {
+			return nil, fmt.Errorf("database path is required for SQLite storage")
+		}
+		return sqlite.NewSQLiteStorage(config.DBPath)
+	default:
+		return nil, fmt.Errorf("unsupported storage type for profiles: %s", config.Type)
+	}
+}
+
 // ValidateStorageType checks if the provided storage type is valid
 func ValidateStorageType(storageType string) (StorageType, error) {
 	switch StorageType(storageType) {

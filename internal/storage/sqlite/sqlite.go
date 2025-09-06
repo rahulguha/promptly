@@ -53,6 +53,16 @@ func (s *SQLiteStorage) Close() error {
 // initSchema creates the database schema if it doesn't exist
 func (s *SQLiteStorage) initSchema() error {
 	schema := `
+	-- Profiles table - stores user-defined personas
+	CREATE TABLE IF NOT EXISTS profiles (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL,
+		description TEXT,
+		attributes TEXT, -- JSON blob for structured attributes
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+
 	-- Personas table - stores user and LLM role definitions
 	CREATE TABLE IF NOT EXISTS personas (
 		id TEXT PRIMARY KEY,
@@ -527,4 +537,125 @@ func (s *SQLiteStorage) GetTemplatesByPersonaID(personaID uuid.UUID) ([]*models.
 	}
 
 	return templates, nil
+}
+
+// Profile operations
+
+func (s *SQLiteStorage) CreateProfile(profile *models.Profile) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	profile.ID = uuid.New().String()
+
+	attributesJSON, err := json.Marshal(profile.Attributes)
+	if err != nil {
+		return fmt.Errorf("failed to marshal attributes: %w", err)
+	}
+
+	query := `INSERT INTO profiles (id, name, description, attributes) VALUES (?, ?, ?, ?)`
+	_, err = s.db.Exec(query, profile.ID, profile.Name, profile.Description, string(attributesJSON))
+	if err != nil {
+		return fmt.Errorf("failed to create profile: %w", err)
+	}
+
+	return nil
+}
+
+func (s *SQLiteStorage) GetAllProfiles() ([]*models.Profile, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	query := `SELECT id, name, description, attributes, created_at, updated_at FROM profiles ORDER BY created_at`
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query profiles: %w", err)
+	}
+	defer rows.Close()
+
+	var profiles []*models.Profile
+	for rows.Next() {
+		var profile models.Profile
+		var attributesJSON string
+		err := rows.Scan(&profile.ID, &profile.Name, &profile.Description, &attributesJSON, &profile.CreatedAt, &profile.UpdatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan profile: %w", err)
+		}
+
+		if err := json.Unmarshal([]byte(attributesJSON), &profile.Attributes); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal attributes: %w", err)
+		}
+
+		profiles = append(profiles, &profile)
+	}
+
+	return profiles, nil
+}
+
+func (s *SQLiteStorage) GetProfileByID(id string) (*models.Profile, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var profile models.Profile
+	var attributesJSON string
+	query := `SELECT id, name, description, attributes, created_at, updated_at FROM profiles WHERE id = ?`
+	err := s.db.QueryRow(query, id).Scan(&profile.ID, &profile.Name, &profile.Description, &attributesJSON, &profile.CreatedAt, &profile.UpdatedAt)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("profile not found")
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get profile: %w", err)
+	}
+
+	if err := json.Unmarshal([]byte(attributesJSON), &profile.Attributes); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal attributes: %w", err)
+	}
+
+	return &profile, nil
+}
+
+func (s *SQLiteStorage) UpdateProfile(profile *models.Profile) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	attributesJSON, err := json.Marshal(profile.Attributes)
+	if err != nil {
+		return fmt.Errorf("failed to marshal attributes: %w", err)
+	}
+
+	query := `UPDATE profiles SET name = ?, description = ?, attributes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+	result, err := s.db.Exec(query, profile.Name, profile.Description, string(attributesJSON), profile.ID)
+	if err != nil {
+		return fmt.Errorf("failed to update profile: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("profile not found")
+	}
+
+	return nil
+}
+
+func (s *SQLiteStorage) DeleteProfile(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	query := `DELETE FROM profiles WHERE id = ?`
+	result, err := s.db.Exec(query, id)
+	if err != nil {
+		return fmt.Errorf("failed to delete profile: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("profile not found")
+	}
+
+	return nil
 }

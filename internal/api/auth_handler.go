@@ -103,7 +103,7 @@ func (h *APIHandler) Callback(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse id_token", "details": err.Error()})
 		return
 	}
-
+	fmt.Printf("ID Token claims: %+v\n", idToken)
 	// Store essential user info in the session
 	session.Set("user_id", idToken.Subject())
 	if email, ok := idToken.Get("email"); ok {
@@ -111,6 +111,9 @@ func (h *APIHandler) Callback(c *gin.Context) {
 	}
 	if name, ok := idToken.Get("name"); ok {
 		session.Set("name", name)
+	}
+	if picture, ok := idToken.Get("picture"); ok {
+		session.Set("picture", picture)
 	}
 	session.Set("authenticated", true)
 
@@ -136,6 +139,7 @@ func (h *APIHandler) GetMe(c *gin.Context) {
 		"user_id": session.Get("user_id"),
 		"email":   session.Get("email"),
 		"name":    session.Get("name"),
+		"picture":    session.Get("picture"),
 	})
 }
 

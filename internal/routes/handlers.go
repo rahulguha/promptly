@@ -14,7 +14,7 @@ import (
 )
 
 func extractVariables(text string) []string {
-	re := regexp.MustCompile(`\{\{([a-zA-Z0-9_]+)\}\}`)
+	re := regexp.MustCompile(`\{\{([a-zA-Z0-9_]+)\}\} `)
 
 	matches := re.FindAllStringSubmatch(text, -1)
 
@@ -25,15 +25,17 @@ func extractVariables(text string) []string {
 
 	uniqueVars := make([]string, 0, len(vars))
 	for v := range vars {
-		uniqueVars = append(uniqueVars, v)
+	
+uniqueVars = append(uniqueVars, v)
 	}
 	return uniqueVars
 }
 
 // Handler contains the dependencies for HTTP handlers
 type Handler struct {
-	Store storage.Storage
-	Cfg   *config.Config
+	Store         storage.Storage
+	ProfileStore  storage.ProfileStorage
+	Cfg           *config.Config
 }
 
 // GetPrompts handles GET /prompts
@@ -530,4 +532,3 @@ func (h *Handler) DeletePersona(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Persona deleted successfully"})
 }
-

@@ -12,6 +12,18 @@ import (
 	"github.com/rahulguha/promptly/internal/api"
 )
 
+// RegisterProfileRoutes sets up the routes for profile management
+func RegisterProfileRoutes(r *gin.RouterGroup, handler *ProfileHandler) {
+	profiles := r.Group("/profiles")
+	{
+		profiles.GET("", handler.GetProfiles)
+		profiles.GET("/:id", handler.GetProfile)
+		profiles.POST("", handler.CreateProfile)
+		profiles.PUT("/:id", handler.UpdateProfile)
+		profiles.DELETE("/:id", handler.DeleteProfile)
+	}
+}
+
 // RegisterRoutes sets up all the routes for the application
 func RegisterRoutes(r *gin.Engine, handler *Handler) {
 	// Configure session middleware
@@ -39,6 +51,10 @@ func RegisterRoutes(r *gin.Engine, handler *Handler) {
 	{
 		// Initialize the API handler with the config
 		apiHandler := api.NewAPIHandler(handler.Cfg)
+
+		// Profile routes
+		profileHandler := &ProfileHandler{Store: handler.ProfileStore}
+		RegisterProfileRoutes(v1, profileHandler)
 
 		// Persona routes
 		personas := v1.Group("/personas")
