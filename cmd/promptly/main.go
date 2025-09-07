@@ -6,12 +6,12 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"github.com/joho/godotenv"
 	"github.com/rahulguha/promptly/internal/config"
 	"github.com/rahulguha/promptly/internal/routes"
 	"github.com/rahulguha/promptly/internal/storage"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var cfgFile string
@@ -34,7 +34,8 @@ var serveCmd = &cobra.Command{
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
+
+cobra.OnInitialize(initConfig)
 
 	// Add serve command to root
 	rootCmd.AddCommand(serveCmd)
@@ -45,15 +46,6 @@ func init() {
 	// Serve command flags
 	serveCmd.Flags().StringP("port", "p", "8080", "Port to run the server on")
 	viper.BindPFlag("port", serveCmd.Flags().Lookup("port"))
-
-	serveCmd.Flags().StringP("data", "d", "data/prompts.json", "Path to data file")
-	viper.BindPFlag("data", serveCmd.Flags().Lookup("data"))
-
-	serveCmd.Flags().StringP("storage", "s", "sqlite", "Storage backend type (json or sqlite)")
-	viper.BindPFlag("storage", serveCmd.Flags().Lookup("storage"))
-
-	serveCmd.Flags().String("db", "data/promptly.db", "Path to SQLite database file (used when --storage=sqlite)")
-	viper.BindPFlag("db", serveCmd.Flags().Lookup("db"))
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -94,46 +86,11 @@ func startServer() {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	// Get storage configuration from flags/config
-	storageTypeStr := viper.GetString("storage")
-	dataPath := viper.GetString("data")
-	dbPath := viper.GetString("db")
+	// Initialize the DB manager
+	dbManager := storage.NewDBManager()
 
-	// Validate and get storage type
-	storageType, err := storage.ValidateStorageType(storageTypeStr)
-	if err != nil {
-		log.Fatalf("Invalid storage type: %v", err)
-	}
-
-	// Create storage configuration
-	var config storage.StorageConfig
-	switch storageType {
-	case storage.StorageTypeJSON:
-		config = storage.StorageConfig{
-			Type:     storage.StorageTypeJSON,
-			JSONPath: dataPath,
-		}
-	case storage.StorageTypeSQLite:
-		config = storage.StorageConfig{
-			Type:   storage.StorageTypeSQLite,
-			DBPath: dbPath,
-		}
-	}
-
-	// Initialize storage
-	store, err := storage.NewStorage(config)
-	if err != nil {
-		log.Fatalf("Failed to initialize %s storage: %v", storageType, err)
-	}
-	defer store.Close()
-
-	// Initialize profile storage
-	profileStore, err := storage.NewProfileStorage(config)
-	if err != nil {
-		log.Fatalf("Failed to initialize %s profile storage: %v", storageType, err)
-	}
-
-	handler := &routes.Handler{Store: store, ProfileStore: profileStore, Cfg: cfg}
+	// The handler now gets the DBManager instead of a specific storage instance
+	handler := &routes.Handler{DBManager: dbManager, Cfg: cfg}
 
 	// Setup Gin router
 	r := gin.Default()
@@ -141,15 +98,8 @@ func startServer() {
 
 	// Start server
 	fmt.Printf("Starting Promptly server on port %s\n", cfg.Port)
-	fmt.Printf("Using %s storage\n", storageType)
-	if storageType == storage.StorageTypeJSON {
-		fmt.Printf("Data file: %s\n", dataPath)
-	} else {
-		fmt.Printf("Database: %s\n", dbPath)
-	}
-
 	if err := r.Run(":" + cfg.Port); err != nil {
-		log.Fatal("Failed to start server:", err)
+		log.Fatalf("Failed to start server: %v", err)
 	}
 }
 

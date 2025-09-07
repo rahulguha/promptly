@@ -23,7 +23,8 @@ func extractVariables(text string) []string {
 		vars[match[1]] = true
 	}
 
-	uniqueVars := make([]string, 0, len(vars))
+
+uniqueVars := make([]string, 0, len(vars))
 	for v := range vars {
 	
 uniqueVars = append(uniqueVars, v)
@@ -33,14 +34,18 @@ uniqueVars = append(uniqueVars, v)
 
 // Handler contains the dependencies for HTTP handlers
 type Handler struct {
-	Store         storage.Storage
-	ProfileStore  storage.ProfileStorage
-	Cfg           *config.Config
+	DBManager *storage.DBManager
+	Cfg       *config.Config
 }
 
 // GetPrompts handles GET /prompts
 func (h *Handler) GetPrompts(c *gin.Context) {
-	prompts, err := h.Store.GetAll()
+	store, exists := c.Get("store")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Storage not initialized"})
+		return
+	}
+	prompts, err := store.(storage.Storage).GetAll()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -50,6 +55,11 @@ func (h *Handler) GetPrompts(c *gin.Context) {
 
 // GetPrompt handles GET /prompts/:id
 func (h *Handler) GetPrompt(c *gin.Context) {
+	store, exists := c.Get("store")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Storage not initialized"})
+		return
+	}
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -57,7 +67,7 @@ func (h *Handler) GetPrompt(c *gin.Context) {
 		return
 	}
 
-	prompt, err := h.Store.GetByID(id)
+	prompt, err := store.(storage.Storage).GetByID(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Prompt not found"})
 		return
@@ -68,13 +78,18 @@ func (h *Handler) GetPrompt(c *gin.Context) {
 
 // CreatePrompt handles POST /prompts
 func (h *Handler) CreatePrompt(c *gin.Context) {
+	store, exists := c.Get("store")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Storage not initialized"})
+		return
+	}
 	var prompt models.Prompt
 	if err := c.ShouldBindJSON(&prompt); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	createdPrompt, err := h.Store.Create(&prompt)
+	createdPrompt, err := store.(storage.Storage).Create(&prompt)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -85,6 +100,11 @@ func (h *Handler) CreatePrompt(c *gin.Context) {
 
 // UpdatePrompt handles PUT /prompts/:id
 func (h *Handler) UpdatePrompt(c *gin.Context) {
+	store, exists := c.Get("store")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Storage not initialized"})
+		return
+	}
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -99,7 +119,7 @@ func (h *Handler) UpdatePrompt(c *gin.Context) {
 	}
 
 	prompt.ID = id
-	updatedPrompt, err := h.Store.Update(&prompt)
+	updatedPrompt, err := store.(storage.Storage).Update(&prompt)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -110,6 +130,11 @@ func (h *Handler) UpdatePrompt(c *gin.Context) {
 
 // DeletePrompt handles DELETE /prompts/:id
 func (h *Handler) DeletePrompt(c *gin.Context) {
+	store, exists := c.Get("store")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Storage not initialized"})
+		return
+	}
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -117,7 +142,7 @@ func (h *Handler) DeletePrompt(c *gin.Context) {
 		return
 	}
 
-	err = h.Store.Delete(id)
+	err = store.(storage.Storage).Delete(id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -130,7 +155,12 @@ func (h *Handler) DeletePrompt(c *gin.Context) {
 
 // GetTemplates handles GET /templates
 func (h *Handler) GetTemplates(c *gin.Context) {
-	templates, err := h.Store.GetAllTemplates()
+	store, exists := c.Get("store")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Storage not initialized"})
+		return
+	}
+	templates, err := store.(storage.Storage).GetAllTemplates()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -140,6 +170,11 @@ func (h *Handler) GetTemplates(c *gin.Context) {
 
 // GetTemplate handles GET /templates/:id
 func (h *Handler) GetTemplate(c *gin.Context) {
+	store, exists := c.Get("store")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Storage not initialized"})
+		return
+	}
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -147,7 +182,7 @@ func (h *Handler) GetTemplate(c *gin.Context) {
 		return
 	}
 
-	template, err := h.Store.GetTemplateByID(id)
+	template, err := store.(storage.Storage).GetTemplateByID(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Template not found"})
 		return
@@ -190,6 +225,11 @@ func buildTemplate(metaRole, task, answerGuideline string) string {
 
 // CreateTemplate handles POST /templates
 func (h *Handler) CreateTemplate(c *gin.Context) {
+	store, exists := c.Get("store")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Storage not initialized"})
+		return
+	}
 	var template models.PromptTemplate
 	if err := c.ShouldBindJSON(&template); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -197,7 +237,7 @@ func (h *Handler) CreateTemplate(c *gin.Context) {
 	}
 
 	// Get persona to populate display roles
-	persona, err := h.Store.GetPersonaByID(template.PersonaID)
+	persona, err := store.(storage.Storage).GetPersonaByID(template.PersonaID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid persona_id: persona not found"})
 		return
@@ -229,7 +269,7 @@ uniqueVars = append(uniqueVars, v)
 	}
 	template.Variables = uniqueVars
 
-	createdTemplate, err := h.Store.CreateTemplate(&template)
+	createdTemplate, err := store.(storage.Storage).CreateTemplate(&template)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -241,6 +281,11 @@ uniqueVars = append(uniqueVars, v)
 
 // UpdateTemplate handles PUT /templates/:id
 func (h *Handler) UpdateTemplate(c *gin.Context) {
+	store, exists := c.Get("store")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Storage not initialized"})
+		return
+	}
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -257,7 +302,7 @@ func (h *Handler) UpdateTemplate(c *gin.Context) {
 	template.ID = id
 
 	// Get persona to populate display roles
-	persona, err := h.Store.GetPersonaByID(template.PersonaID)
+	persona, err := store.(storage.Storage).GetPersonaByID(template.PersonaID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid persona_id: persona not found"})
 		return
@@ -289,7 +334,7 @@ uniqueVars = append(uniqueVars, v)
 	}
 	template.Variables = uniqueVars
 
-	updatedTemplate, err := h.Store.UpdateTemplate(&template)
+	updatedTemplate, err := store.(storage.Storage).UpdateTemplate(&template)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -300,6 +345,11 @@ uniqueVars = append(uniqueVars, v)
 
 // CreateTemplateVersion handles POST /templates/:id/version
 func (h *Handler) CreateTemplateVersion(c *gin.Context) {
+	store, exists := c.Get("store")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Storage not initialized"})
+		return
+	}
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -316,7 +366,7 @@ func (h *Handler) CreateTemplateVersion(c *gin.Context) {
 	template.ID = id
 
 	// Get persona to populate display roles
-	persona, err := h.Store.GetPersonaByID(template.PersonaID)
+	persona, err := store.(storage.Storage).GetPersonaByID(template.PersonaID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid persona_id: persona not found"})
 		return
@@ -348,7 +398,7 @@ uniqueVars = append(uniqueVars, v)
 	}
 	template.Variables = uniqueVars
 
-	newVersion, err := h.Store.CreateTemplateVersion(&template)
+	newVersion, err := store.(storage.Storage).CreateTemplateVersion(&template)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -359,6 +409,11 @@ uniqueVars = append(uniqueVars, v)
 
 // DeleteTemplate handles DELETE /templates/:id?version=N
 func (h *Handler) DeleteTemplate(c *gin.Context) {
+	store, exists := c.Get("store")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Storage not initialized"})
+		return
+	}
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -378,7 +433,7 @@ func (h *Handler) DeleteTemplate(c *gin.Context) {
 		return
 	}
 
-	err = h.Store.DeleteTemplate(id, version)
+	err = store.(storage.Storage).DeleteTemplate(id, version)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -397,6 +452,11 @@ type GeneratePromptRequest struct {
 
 // GeneratePrompt handles POST /generate-prompt
 func (h *Handler) GeneratePrompt(c *gin.Context) {
+	store, exists := c.Get("store")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Storage not initialized"})
+		return
+	}
 	var req GeneratePromptRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -404,7 +464,7 @@ func (h *Handler) GeneratePrompt(c *gin.Context) {
 	}
 
 	// Get the template
-	template, err := h.Store.GetTemplateByID(req.TemplateID)
+	template, err := store.(storage.Storage).GetTemplateByID(req.TemplateID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Template not found"})
 		return
@@ -434,7 +494,7 @@ func (h *Handler) GeneratePrompt(c *gin.Context) {
 		Content:         content,
 	}
 
-	createdPrompt, err := h.Store.Create(prompt)
+	createdPrompt, err := store.(storage.Storage).Create(prompt)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -447,7 +507,12 @@ func (h *Handler) GeneratePrompt(c *gin.Context) {
 
 // GetPersonas handles GET /personas
 func (h *Handler) GetPersonas(c *gin.Context) {
-	personas, err := h.Store.GetAllPersonas()
+	store, exists := c.Get("store")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Storage not initialized"})
+		return
+	}
+	personas, err := store.(storage.Storage).GetAllPersonas()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -457,6 +522,11 @@ func (h *Handler) GetPersonas(c *gin.Context) {
 
 // GetPersona handles GET /personas/:id
 func (h *Handler) GetPersona(c *gin.Context) {
+	store, exists := c.Get("store")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Storage not initialized"})
+		return
+	}
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -464,7 +534,7 @@ func (h *Handler) GetPersona(c *gin.Context) {
 		return
 	}
 
-	persona, err := h.Store.GetPersonaByID(id)
+	persona, err := store.(storage.Storage).GetPersonaByID(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Persona not found"})
 		return
@@ -475,13 +545,18 @@ func (h *Handler) GetPersona(c *gin.Context) {
 
 // CreatePersona handles POST /personas
 func (h *Handler) CreatePersona(c *gin.Context) {
+	store, exists := c.Get("store")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Storage not initialized"})
+		return
+	}
 	var persona models.Persona
 	if err := c.ShouldBindJSON(&persona); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	createdPersona, err := h.Store.CreatePersona(&persona)
+	createdPersona, err := store.(storage.Storage).CreatePersona(&persona)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -492,6 +567,11 @@ func (h *Handler) CreatePersona(c *gin.Context) {
 
 // UpdatePersona handles PUT /personas/:id
 func (h *Handler) UpdatePersona(c *gin.Context) {
+	store, exists := c.Get("store")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Storage not initialized"})
+		return
+	}
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -506,7 +586,7 @@ func (h *Handler) UpdatePersona(c *gin.Context) {
 	}
 
 	persona.ID = id
-	updatedPersona, err := h.Store.UpdatePersona(&persona)
+	updatedPersona, err := store.(storage.Storage).UpdatePersona(&persona)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -517,6 +597,11 @@ func (h *Handler) UpdatePersona(c *gin.Context) {
 
 // DeletePersona handles DELETE /personas/:id
 func (h *Handler) DeletePersona(c *gin.Context) {
+	store, exists := c.Get("store")
+	if !exists {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Storage not initialized"})
+		return
+	}
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -524,7 +609,7 @@ func (h *Handler) DeletePersona(c *gin.Context) {
 		return
 	}
 
-	err = h.Store.DeletePersona(id)
+	err = store.(storage.Storage).DeletePersona(id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

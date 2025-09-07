@@ -11,13 +11,69 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+const Schema = `
+-- Profiles table - stores user-defined personas
+CREATE TABLE IF NOT EXISTS profiles (
+	id TEXT PRIMARY KEY,
+	name TEXT NOT NULL,
+	description TEXT,
+	attributes TEXT, -- JSON blob for structured attributes
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Personas table - stores user and LLM role definitions
+CREATE TABLE IF NOT EXISTS personas (
+	id TEXT PRIMARY KEY,
+	user_role_display TEXT NOT NULL,
+	llm_role_display TEXT NOT NULL,
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Prompt templates table - stores reusable prompt templates with variables
+CREATE TABLE IF NOT EXISTS prompt_templates (
+	id TEXT PRIMARY KEY,
+	name TEXT,
+	persona_id TEXT NOT NULL,
+	version INTEGER NOT NULL DEFAULT 1,
+	meta_role TEXT,
+	task TEXT,
+	answer_guideline TEXT,
+	template TEXT NOT NULL,
+	variables TEXT NOT NULL, -- JSON array of variable names
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (persona_id) REFERENCES personas(id) ON DELETE CASCADE
+);
+
+-- Prompts table - stores generated prompts from templates
+CREATE TABLE IF NOT EXISTS prompts (
+	id TEXT PRIMARY KEY,
+	name TEXT,
+	template_id TEXT NOT NULL,
+	template_version INTEGER NOT NULL DEFAULT 1,
+	variable_values TEXT NOT NULL, -- JSON object with variable values
+	content TEXT NOT NULL, -- Final generated prompt content
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+	FOREIGN KEY (template_id) REFERENCES prompt_templates(id) ON DELETE CASCADE
+);
+
+-- Indexes for better query performance
+CREATE INDEX IF NOT EXISTS idx_personas_user_role ON personas(user_role_display);
+CREATE INDEX IF NOT EXISTS idx_personas_llm_role ON personas(llm_role_display);
+CREATE INDEX IF NOT EXISTS idx_templates_persona ON prompt_templates(persona_id);
+CREATE INDEX IF NOT EXISTS idx_prompts_template ON prompts(template_id);
+`
+
 type SQLiteStorage struct {
 	db   *sql.DB
 	mu   sync.RWMutex
 	path string
 }
 
-// NewSQLiteStorage creates a new SQLite storage instance
+// NewSQLiteStorage creates a new SQLite storage instance by opening a new DB connection
 func NewSQLiteStorage(dbPath string) (*SQLiteStorage, error) {
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
@@ -31,89 +87,40 @@ func NewSQLiteStorage(dbPath string) (*SQLiteStorage, error) {
 		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
 	}
 
-	storage := &SQLiteStorage{
-		db:   db,
-		path: dbPath,
-	}
-
 	// Initialize schema if it doesn't exist
-	if err := storage.initSchema(); err != nil {
+	if err := InitializeSchema(db); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to initialize schema: %w", err)
 	}
 
-	return storage, nil
+	return &SQLiteStorage{
+		db:   db,
+		path: dbPath,
+	}, nil
 }
 
-// Close closes the database connection
+// NewSQLiteStorageWithDB creates a new SQLite storage instance from an existing DB connection
+func NewSQLiteStorageWithDB(db *sql.DB) *SQLiteStorage {
+	return &SQLiteStorage{
+		db: db,
+	}
+}
+
+// Close closes the database connection.
+// Note: This should only be called if the storage instance was created with NewSQLiteStorage.
 func (s *SQLiteStorage) Close() error {
-	return s.db.Close()
+	if s.path != "" { // Only close DBs opened by NewSQLiteStorage
+		return s.db.Close()
+	}
+	return nil
 }
 
-// initSchema creates the database schema if it doesn't exist
-func (s *SQLiteStorage) initSchema() error {
-	schema := `
-	-- Profiles table - stores user-defined personas
-	CREATE TABLE IF NOT EXISTS profiles (
-		id TEXT PRIMARY KEY,
-		name TEXT NOT NULL,
-		description TEXT,
-		attributes TEXT, -- JSON blob for structured attributes
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-	);
-
-	-- Personas table - stores user and LLM role definitions
-	CREATE TABLE IF NOT EXISTS personas (
-		id TEXT PRIMARY KEY,
-		user_role_display TEXT NOT NULL,
-		llm_role_display TEXT NOT NULL,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-	);
-
-	-- Prompt templates table - stores reusable prompt templates with variables
-	CREATE TABLE IF NOT EXISTS prompt_templates (
-		id TEXT PRIMARY KEY,
-		name TEXT,
-		persona_id TEXT NOT NULL,
-		version INTEGER NOT NULL DEFAULT 1,
-		meta_role TEXT,
-		task TEXT,
-		answer_guideline TEXT,
-		template TEXT NOT NULL,
-		variables TEXT NOT NULL, -- JSON array of variable names
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		FOREIGN KEY (persona_id) REFERENCES personas(id) ON DELETE CASCADE
-	);
-
-	-- Prompts table - stores generated prompts from templates
-	CREATE TABLE IF NOT EXISTS prompts (
-		id TEXT PRIMARY KEY,
-		name TEXT,
-		template_id TEXT NOT NULL,
-		template_version INTEGER NOT NULL DEFAULT 1,
-		variable_values TEXT NOT NULL, -- JSON object with variable values
-		content TEXT NOT NULL, -- Final generated prompt content
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		FOREIGN KEY (template_id) REFERENCES prompt_templates(id) ON DELETE CASCADE
-	);
-
-	-- Indexes for better query performance
-	CREATE INDEX IF NOT EXISTS idx_personas_user_role ON personas(user_role_display);
-	CREATE INDEX IF NOT EXISTS idx_personas_llm_role ON personas(llm_role_display);
-	CREATE INDEX IF NOT EXISTS idx_templates_persona ON prompt_templates(persona_id);
-	CREATE INDEX IF NOT EXISTS idx_prompts_template ON prompts(template_id);
-	`
-
-	// Execute schema creation
-	_, err := s.db.Exec(schema)
+// InitializeSchema creates the database schema on a given DB connection
+func InitializeSchema(db *sql.DB) error {
+	_, err := db.Exec(Schema)
 	if err != nil {
 		return fmt.Errorf("failed to create schema: %w", err)
 	}
-
 	return nil
 }
 

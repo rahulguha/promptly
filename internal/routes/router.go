@@ -2,7 +2,6 @@ package routes
 
 import (
 	"net/http"
-	// "os"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -10,7 +9,39 @@ import (
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/rahulguha/promptly/internal/api"
+	"github.com/rahulguha/promptly/internal/storage"
+	"github.com/rahulguha/promptly/internal/storage/sqlite"
 )
+
+// DBMiddleware creates a user-specific database connection and attaches it to the context.
+func DBMiddleware(dbManager *storage.DBManager) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		session := sessions.Default(c)
+		userID := session.Get("user_id")
+		email := session.Get("email")
+
+		if userID == nil || email == nil {
+			// If the user is not authenticated, we can't create a DB connection.
+			// For public routes, this is fine. For protected routes, an auth middleware should run first.
+			c.Next()
+			return
+		}
+
+		// Get the user-specific database connection
+		db, err := dbManager.GetDB(userID.(string), email.(string))
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to user database"})
+			c.Abort()
+			return
+		}
+
+		// Create a new storage instance with the user's DB
+		store := sqlite.NewSQLiteStorageWithDB(db)
+		c.Set("store", store)
+
+		c.Next()
+	}
+}
 
 // RegisterProfileRoutes sets up the routes for profile management
 func RegisterProfileRoutes(r *gin.RouterGroup, handler *ProfileHandler) {
@@ -48,12 +79,13 @@ func RegisterRoutes(r *gin.Engine, handler *Handler) {
 
 	// API v1 routes
 	v1 := r.Group("/v1")
+	v1.Use(DBMiddleware(handler.DBManager))
 	{
 		// Initialize the API handler with the config
 		apiHandler := api.NewAPIHandler(handler.Cfg)
 
 		// Profile routes
-		profileHandler := &ProfileHandler{Store: handler.ProfileStore}
+		profileHandler := &ProfileHandler{}
 		RegisterProfileRoutes(v1, profileHandler)
 
 		// Persona routes
