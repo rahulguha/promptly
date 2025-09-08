@@ -4,10 +4,20 @@
 
 # Promptly
 
-A prompt management application with **persona-based templating** for AI interactions. Create reusable **personas**, **prompt templates** with **variable substitution** for various use cases.
-User can play a role and may want LLM to play another role. For example:
+A prompt management application with **profile** and **persona-based templating** for AI interactions. Create reusable **personas**, **prompt templates** with **variable substitution** for various use cases.
+
+### Updates
+
+- Supports Social Login - OAuth 2.0 flow
+- Support Multi Profile for one Logged in User
+- Complete Isolation of user profile, templates and prompts.
+
+User can play a role and may want LLM to play another role.
+For example:
 
 - I am a **High School Student** and want LLM to play role of **Patient Teacher**. Some other time same person may want LLM to play a role of **Mock Tester** or **Test Question Generator** or may be a **Student Buddy**. In each scenario, different prompts, appropriate to the role play will yield best results.
+
+![alt text](image-1.png)
 
 ## Features
 
