@@ -463,8 +463,9 @@ func (h *Handler) DeleteTemplate(c *gin.Context) {
 
 // GeneratePromptRequest represents the request for generating a prompt
 type GeneratePromptRequest struct {
-	Name    string `json:"name"`
-	Content string `json:"content" binding:"required"`
+	Name       string    `json:"name"`
+	Content    string    `json:"content" binding:"required"`
+	TemplateID uuid.UUID `json:"template_id"`
 }
 
 // GeneratePrompt handles POST /generate-prompt
@@ -515,7 +516,7 @@ func (h *Handler) GeneratePrompt(c *gin.Context) {
 		Content: req.Content,
 		// Set default values for fields that are no longer generated,
 		// as they are required by the database schema.
-		TemplateID:      uuid.Nil,
+		TemplateID:      req.TemplateID,
 		TemplateVersion: 0,
 		Values:          make(map[string]string),
 	}
