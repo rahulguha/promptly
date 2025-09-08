@@ -261,17 +261,39 @@ func (fs *FileStorage) saveTemplates(templates []models.PromptTemplate) error {
 	return os.WriteFile(fs.templatesPath, data, 0644)
 }
 
-func (fs *FileStorage) GetAllTemplates() ([]*models.PromptTemplate, error) {
+func (fs *FileStorage) GetAllTemplates(profileID string) ([]*models.PromptTemplate, error) {
 	templates, err := fs.loadTemplates()
 	if err != nil {
 		return nil, err
 	}
-	
-	result := make([]*models.PromptTemplate, len(templates))
-	for i := range templates {
-		result[i] = &templates[i]
+
+	personas, err := fs.loadPersonas()
+	if err != nil {
+		return nil, err
 	}
-	return result, nil
+
+	// Create a map of persona IDs that match the profileID
+	personaIDMap := make(map[uuid.UUID]bool)
+	if profileID != "" {
+		for _, p := range personas {
+			if p.ProfileID == profileID {
+				personaIDMap[p.ID] = true
+			}
+		}
+	}
+
+	var filteredTemplates []*models.PromptTemplate
+	for i := range templates {
+		// If a profileID is provided, filter by it
+		if profileID != "" {
+			if templates[i].ProfileID != profileID && !personaIDMap[templates[i].PersonaID] {
+				continue
+			}
+		}
+		filteredTemplates = append(filteredTemplates, &templates[i])
+	}
+
+	return filteredTemplates, nil
 }
 
 func (fs *FileStorage) GetTemplateByID(id uuid.UUID) (*models.PromptTemplate, error) {
@@ -495,17 +517,22 @@ func (fs *FileStorage) savePersonas(personas []models.Persona) error {
 	return os.WriteFile(fs.personasPath, data, 0644)
 }
 
-func (fs *FileStorage) GetAllPersonas() ([]*models.Persona, error) {
+func (fs *FileStorage) GetAllPersonas(profileID string) ([]*models.Persona, error) {
 	personas, err := fs.loadPersonas()
 	if err != nil {
 		return nil, err
 	}
-	
-	result := make([]*models.Persona, len(personas))
+
+	var filteredPersonas []*models.Persona
 	for i := range personas {
-		result[i] = &personas[i]
+		// If a profileID is provided, filter by it
+		if profileID != "" && personas[i].ProfileID != profileID {
+			continue
+		}
+		filteredPersonas = append(filteredPersonas, &personas[i])
 	}
-	return result, nil
+
+	return filteredPersonas, nil
 }
 
 func (fs *FileStorage) GetPersonaByID(id uuid.UUID) (*models.Persona, error) {

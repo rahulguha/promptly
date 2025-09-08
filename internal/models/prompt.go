@@ -4,9 +4,10 @@ package models
 import "github.com/google/uuid"
 
 type Persona struct {
-    ID              uuid.UUID `json:"persona_id"`
-    UserRoleDisplay string    `json:"user_role_display"`
-    LLMRoleDisplay  string    `json:"llm_role_display"`
+	ID              uuid.UUID `json:"persona_id"`
+	UserRoleDisplay string    `json:"user_role_display"`
+	LLMRoleDisplay  string    `json:"llm_role_display"`
+	ProfileID       string    `json:"profile_id,omitempty"`
 }
 
 type PromptTemplate struct {
@@ -19,18 +20,15 @@ type PromptTemplate struct {
 	AnswerGuideline string    `json:"answer_guideline"`
 	Template        string    `json:"template"`
 	Variables       []string  `json:"variables"`
+	ProfileID       string    `json:"profile_id,omitempty"`
 }
 
 type Prompt struct {
-    ID              uuid.UUID         `json:"id"`
-    Name            string            `json:"name"`
-    TemplateID      uuid.UUID         `json:"template_id"`
-    TemplateVersion int               `json:"template_version"`
-    Values          map[string]string `json:"variable_values"`
-    Content         string            `json:"content"`
-}
-
-type RoleResponse struct {
-    UserRoles []string          `json:"user_roles,omitempty"`
-    LLMRoles  []string          `json:"llm_roles,omitempty"`
+	ID              uuid.UUID         `json:"id"`
+	Name            string            `json:"name"`
+	TemplateID      uuid.UUID         `json:"template_id"`
+	TemplateVersion int               `json:"template_version"`
+	Values          map[string]string `json:"variable_values"`
+	Content         string            `json:"content"`
+	ProfileID       string            `json:"profile_id,omitempty"`
 }
