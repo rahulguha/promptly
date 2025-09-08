@@ -154,7 +154,7 @@ func (s *SQLiteStorage) GetAllPersonas(profileID string) ([]*models.Persona, err
 	args := []interface{}{}
 
 	if profileID != "" {
-		query += " WHERE profile_id = ?"
+		query += " WHERE profile_id = ? OR profile_id = '00000000-0000-0000-0000-000000000000'"
 		args = append(args, profileID)
 	}
 
