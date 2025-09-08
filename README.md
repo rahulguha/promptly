@@ -21,10 +21,20 @@ For example:
 
 ![alt text](image-1.png)
 
+#### Prompt Hierarchy
+
+![alt text](image-2.png)
+
+#### Anatomy of a Prompt
+
+![alt text](image-3.png)
+
 #### Features
 
 ![alt text](image.png)
 
+- **Multi-Profile for Logged in User**: One logged in user can have multiple profile and subsequent persona, template and prompts
+- **User Level Isolation**: Complete isolation of data at user level.
 - **Persona Management**: Define user and LLM roles for different contexts
 - **Template System**: Create reusable prompt templates with `{{variable}}` placeholders
 - **Template Version Management**: Maintain versions of templates and edit them separately. Track generated prompts
