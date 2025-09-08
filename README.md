@@ -17,9 +17,11 @@ For example:
 
 - I am a **High School Student** and want LLM to play role of **Patient Teacher**. Some other time same person may want LLM to play a role of **Mock Tester** or **Test Question Generator** or may be a **Student Buddy**. In each scenario, different prompts, appropriate to the role play will yield best results.
 
+#### System Context
+
 ![alt text](image-1.png)
 
-## Features
+#### Features
 
 ![alt text](image.png)
 
