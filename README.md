@@ -19,15 +19,15 @@ For example:
 
 #### System Context
 
-![alt text](image-1.png)
+![alt text](img/system_context.png)
 
 #### Prompt Hierarchy
 
-![alt text](image-2.png)
+![alt text](img/prompt-hirarchy.png)
 
 #### Anatomy of a Prompt
 
-![alt text](image-3.png)
+![alt text](img/prompt_anatomy.png)
 
 #### Features
 
