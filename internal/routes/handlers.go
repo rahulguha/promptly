@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -14,7 +15,7 @@ import (
 )
 
 func extractVariables(text string) []string {
-	re := regexp.MustCompile(`\{\{([a-zA-Z0-9_]+)\}\} `)
+	re := regexp.MustCompile(`\{\{([a-zA-Z0-9_]+)\}\}`)
 
 	matches := re.FindAllStringSubmatch(text, -1)
 
@@ -89,6 +90,10 @@ func (h *Handler) CreatePrompt(c *gin.Context) {
 		return
 	}
 
+	if prompt.ProfileID == "" {
+		prompt.ProfileID = DefaultProfileID
+	}
+
 	createdPrompt, err := store.(storage.Storage).Create(&prompt)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -160,13 +165,40 @@ func (h *Handler) GetTemplates(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Storage not initialized"})
 		return
 	}
-	templates, err := store.(storage.Storage).GetAllTemplates()
+
+	// Log complete request details
+	fmt.Println("--- New GetTemplates Request ---")
+	fmt.Printf("Request URL: %s %s\n", c.Request.Method, c.Request.URL.String())
+	fmt.Println("Request Headers:")
+	for key, values := range c.Request.Header {
+		for _, value := range values {
+			fmt.Printf("  %s: %s\n", key, value)
+		}
+	}
+	fmt.Println("-----------------------------")
+
+	profileID := c.Query("profile_id")
+	templates, err := store.(storage.Storage).GetAllTemplates(profileID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Log response payload
+	fmt.Println("--- GetTemplates Response ---")
+	// Marshal the payload to JSON for proper logging
+	responsePayload, err := json.MarshalIndent(templates, "", "  ")
+	if err != nil {
+		fmt.Printf("Error marshalling response payload: %v\n", err)
+	} else {
+		fmt.Printf("Payload:\n%s\n", string(responsePayload))
+	}
+	fmt.Println("--------------------------")
+
 	c.JSON(http.StatusOK, templates)
 }
+
+
 
 // GetTemplate handles GET /templates/:id
 func (h *Handler) GetTemplate(c *gin.Context) {
@@ -234,6 +266,10 @@ func (h *Handler) CreateTemplate(c *gin.Context) {
 	if err := c.ShouldBindJSON(&template); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	if template.ProfileID == "" {
+		template.ProfileID = DefaultProfileID
 	}
 
 	// Get persona to populate display roles
@@ -463,6 +499,15 @@ func (h *Handler) GeneratePrompt(c *gin.Context) {
 		return
 	}
 
+	// Log the incoming request
+	fmt.Println("--- New GeneratePrompt Request ---")
+	reqBytes, err := json.MarshalIndent(req, "", "  ")
+	if err != nil {
+		fmt.Printf("Error marshalling request: %v\n", err)
+	} else {
+		fmt.Printf("Request Body:\n%s\n", string(reqBytes))
+	}
+
 	// Get the template
 	template, err := store.(storage.Storage).GetTemplateByID(req.TemplateID)
 	if err != nil {
@@ -470,9 +515,12 @@ func (h *Handler) GeneratePrompt(c *gin.Context) {
 		return
 	}
 
-	// Create filtered values map - only include variables that exist in template
+	// Extract variables directly from the template content to ensure they are always up-to-date
+	templateVars := extractVariables(template.Template)
+
+	// Create filtered values map - only include variables that exist in the template
 	filteredValues := make(map[string]string)
-	for _, variable := range template.Variables {
+	for _, variable := range templateVars {
 		if value, exists := req.Values[variable]; exists {
 			filteredValues[variable] = value
 		}
@@ -500,8 +548,20 @@ func (h *Handler) GeneratePrompt(c *gin.Context) {
 		return
 	}
 
+	// Log the response
+	fmt.Println("--- GeneratePrompt Response ---")
+	resBytes, err := json.MarshalIndent(createdPrompt, "", "  ")
+	if err != nil {
+		fmt.Printf("Error marshalling response: %v\n", err)
+	} else {
+		fmt.Printf("Response Body:\n%s\n", string(resBytes))
+	}
+	fmt.Println("-----------------------------")
+
 	c.JSON(http.StatusCreated, createdPrompt)
 }
+
+
 
 // Persona handlers
 
@@ -512,13 +572,40 @@ func (h *Handler) GetPersonas(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Storage not initialized"})
 		return
 	}
-	personas, err := store.(storage.Storage).GetAllPersonas()
+
+	// Log complete request details
+	// fmt.Println("--- New GetPersonas Request ---")
+	// fmt.Printf("Request URL: %s %s\n", c.Request.Method, c.Request.URL.String())
+	// fmt.Println("Request Headers:")
+	// for key, values := range c.Request.Header {
+	// 	for _, value := range values {
+	// 		fmt.Printf("  %s: %s\n", key, value)
+	// 	}
+	// }
+	// fmt.Println("-----------------------------")
+
+	profileID := c.Query("profile_id")
+	personas, err := store.(storage.Storage).GetAllPersonas(profileID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Log response payload
+	fmt.Println("--- GetPersonas Response ---")
+	// Marshal the payload to JSON for proper logging
+	responsePayload, err := json.MarshalIndent(personas, "", "  ")
+	if err != nil {
+		fmt.Printf("Error marshalling response payload: %v\n", err)
+	} else {
+		fmt.Printf("Payload:\n%s\n", string(responsePayload))
+	}
+	fmt.Println("--------------------------")
+
 	c.JSON(http.StatusOK, personas)
 }
+
+
 
 // GetPersona handles GET /personas/:id
 func (h *Handler) GetPersona(c *gin.Context) {
@@ -543,6 +630,8 @@ func (h *Handler) GetPersona(c *gin.Context) {
 	c.JSON(http.StatusOK, persona)
 }
 
+const DefaultProfileID = "00000000-0000-0000-0000-000000000000"
+
 // CreatePersona handles POST /personas
 func (h *Handler) CreatePersona(c *gin.Context) {
 	store, exists := c.Get("store")
@@ -554,6 +643,10 @@ func (h *Handler) CreatePersona(c *gin.Context) {
 	if err := c.ShouldBindJSON(&persona); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	if persona.ProfileID == "" {
+		persona.ProfileID = DefaultProfileID
 	}
 
 	createdPersona, err := store.(storage.Storage).CreatePersona(&persona)
