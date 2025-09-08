@@ -23,10 +23,21 @@ func TestSQLiteStorage_Personas(t *testing.T) {
 
 	// Schema is now automatically created by NewSQLiteStorage()
 
+	// Create a profile to satisfy the foreign key constraint
+	profile := &models.Profile{
+		Name:        "Test Profile",
+		Description: "A profile for testing",
+	}
+	err = storage.CreateProfile(profile)
+	if err != nil {
+		t.Fatalf("Failed to create profile: %v", err)
+	}
+
 	// Test Create
 	persona := &models.Persona{
 		UserRoleDisplay: "Software Developer",
 		LLMRoleDisplay:  "Code Reviewer",
+		ProfileID:       profile.ID,
 	}
 
 	created, err := storage.CreatePersona(persona)
@@ -43,7 +54,7 @@ func TestSQLiteStorage_Personas(t *testing.T) {
 	}
 
 	// Test GetAll
-	personas, err := storage.GetAllPersonas()
+	personas, err := storage.GetAllPersonas("")
 	if err != nil {
 		t.Fatalf("Failed to get all personas: %v", err)
 	}
@@ -98,10 +109,21 @@ func TestSQLiteStorage_Templates(t *testing.T) {
 
 	// Schema is now automatically created by NewSQLiteStorage()
 
+	// Create a profile to satisfy the foreign key constraint
+	profile := &models.Profile{
+		Name:        "Test Profile",
+		Description: "A profile for testing",
+	}
+	err = storage.CreateProfile(profile)
+	if err != nil {
+		t.Fatalf("Failed to create profile: %v", err)
+	}
+
 	// Create a persona first
 	persona := &models.Persona{
 		UserRoleDisplay: "Developer",
 		LLMRoleDisplay:  "Reviewer",
+		ProfileID:       profile.ID,
 	}
 	createdPersona, err := storage.CreatePersona(persona)
 	if err != nil {
@@ -113,6 +135,7 @@ func TestSQLiteStorage_Templates(t *testing.T) {
 		PersonaID: createdPersona.ID,
 		Template:  "Review this {{language}} code for {{focus}}",
 		Variables: []string{"language", "focus"},
+		ProfileID: profile.ID,
 	}
 
 	created, err := storage.CreateTemplate(template)
@@ -151,10 +174,21 @@ func TestSQLiteStorage_Prompts(t *testing.T) {
 
 	// Schema is now automatically created by NewSQLiteStorage()
 
+	// Create a profile to satisfy the foreign key constraint
+	profile := &models.Profile{
+		Name:        "Test Profile",
+		Description: "A profile for testing",
+	}
+	err = storage.CreateProfile(profile)
+	if err != nil {
+		t.Fatalf("Failed to create profile: %v", err)
+	}
+
 	// Create a persona and template first to satisfy foreign key constraints
 	persona := &models.Persona{
 		UserRoleDisplay: "Developer",
 		LLMRoleDisplay:  "Reviewer",
+		ProfileID:       profile.ID,
 	}
 	createdPersona, err := storage.CreatePersona(persona)
 	if err != nil {
@@ -165,6 +199,7 @@ func TestSQLiteStorage_Prompts(t *testing.T) {
 		PersonaID: createdPersona.ID,
 		Template:  "Review this {{language}} code for {{focus}}",
 		Variables: []string{"language", "focus"},
+		ProfileID: profile.ID,
 	}
 	createdTemplate, err := storage.CreateTemplate(template)
 	if err != nil {
@@ -177,6 +212,7 @@ func TestSQLiteStorage_Prompts(t *testing.T) {
 		TemplateVersion: createdTemplate.Version,
 		Values:          map[string]string{"language": "Go", "focus": "performance"},
 		Content:         "Review this Go code for performance",
+		ProfileID:       profile.ID,
 	}
 
 	created, err := storage.Create(prompt)
