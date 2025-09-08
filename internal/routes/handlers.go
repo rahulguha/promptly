@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 
@@ -166,16 +167,7 @@ func (h *Handler) GetTemplates(c *gin.Context) {
 		return
 	}
 
-	// Log complete request details
-	fmt.Println("--- New GetTemplates Request ---")
-	fmt.Printf("Request URL: %s %s\n", c.Request.Method, c.Request.URL.String())
-	fmt.Println("Request Headers:")
-	for key, values := range c.Request.Header {
-		for _, value := range values {
-			fmt.Printf("  %s: %s\n", key, value)
-		}
-	}
-	fmt.Println("-----------------------------")
+	
 
 	profileID := c.Query("profile_id")
 	templates, err := store.(storage.Storage).GetAllTemplates(profileID)
@@ -184,16 +176,7 @@ func (h *Handler) GetTemplates(c *gin.Context) {
 		return
 	}
 
-	// Log response payload
-	fmt.Println("--- GetTemplates Response ---")
-	// Marshal the payload to JSON for proper logging
-	responsePayload, err := json.MarshalIndent(templates, "", "  ")
-	if err != nil {
-		fmt.Printf("Error marshalling response payload: %v\n", err)
-	} else {
-		fmt.Printf("Payload:\n%s\n", string(responsePayload))
-	}
-	fmt.Println("--------------------------")
+	
 
 	c.JSON(http.StatusOK, templates)
 }
@@ -480,10 +463,8 @@ func (h *Handler) DeleteTemplate(c *gin.Context) {
 
 // GeneratePromptRequest represents the request for generating a prompt
 type GeneratePromptRequest struct {
-	TemplateID      uuid.UUID         `json:"template_id" binding:"required"`
-	TemplateVersion int               `json:"template_version"`
-	Name            string            `json:"name"`
-	Values          map[string]string `json:"variable_values" binding:"required"`
+	Name    string `json:"name"`
+	Content string `json:"content" binding:"required"`
 }
 
 // GeneratePrompt handles POST /generate-prompt
@@ -499,47 +480,44 @@ func (h *Handler) GeneratePrompt(c *gin.Context) {
 		return
 	}
 
-	// Log the incoming request
-	fmt.Println("--- New GeneratePrompt Request ---")
-	reqBytes, err := json.MarshalIndent(req, "", "  ")
-	if err != nil {
-		fmt.Printf("Error marshalling request: %v\n", err)
-	} else {
-		fmt.Printf("Request Body:\n%s\n", string(reqBytes))
-	}
-
-	// Get the template
-	template, err := store.(storage.Storage).GetTemplateByID(req.TemplateID)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Template not found"})
-		return
-	}
-
-	// Extract variables directly from the template content to ensure they are always up-to-date
-	templateVars := extractVariables(template.Template)
-
-	// Create filtered values map - only include variables that exist in the template
-	filteredValues := make(map[string]string)
-	for _, variable := range templateVars {
-		if value, exists := req.Values[variable]; exists {
-			filteredValues[variable] = value
+	// The logic for generating a prompt from a template is now commented out.
+	// The client is expected to send the complete prompt content.
+	/*
+		// Get the template
+		template, err := store.(storage.Storage).GetTemplateByID(req.TemplateID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Template not found"})
+			return
 		}
-	}
 
-	// Generate the final prompt content by substituting variables
-	content := template.Template
-	for variable, value := range filteredValues {
-		placeholder := "{{" + variable + "}}"
-		content = strings.ReplaceAll(content, placeholder, value)
-	}
+		// Extract variables directly from the template content to ensure they are always up-to-date
+		templateVars := extractVariables(template.Template)
+
+		// Create filtered values map - only include variables that exist in the template
+		filteredValues := make(map[string]string)
+		for _, variable := range templateVars {
+			if value, exists := req.Values[variable]; exists {
+				filteredValues[variable] = value
+			}
+		}
+
+		// Generate the final prompt content by substituting variables
+		content := template.Template
+		for variable, value := range filteredValues {
+			placeholder := "{{" + variable + "}}"
+			content = strings.ReplaceAll(content, placeholder, value)
+		}
+	*/
 
 	// Create new prompt with rendered content
 	prompt := &models.Prompt{
-		Name:            req.Name,
-		TemplateID:      req.TemplateID,
-		TemplateVersion: template.Version,
-		Values:          filteredValues,
-		Content:         content,
+		Name:    req.Name,
+		Content: req.Content,
+		// Set default values for fields that are no longer generated,
+		// as they are required by the database schema.
+		TemplateID:      uuid.Nil,
+		TemplateVersion: 0,
+		Values:          make(map[string]string),
 	}
 
 	createdPrompt, err := store.(storage.Storage).Create(prompt)
@@ -548,18 +526,9 @@ func (h *Handler) GeneratePrompt(c *gin.Context) {
 		return
 	}
 
-	// Log the response
-	fmt.Println("--- GeneratePrompt Response ---")
-	resBytes, err := json.MarshalIndent(createdPrompt, "", "  ")
-	if err != nil {
-		fmt.Printf("Error marshalling response: %v\n", err)
-	} else {
-		fmt.Printf("Response Body:\n%s\n", string(resBytes))
-	}
-	fmt.Println("-----------------------------")
-
 	c.JSON(http.StatusCreated, createdPrompt)
 }
+
 
 
 
@@ -591,16 +560,8 @@ func (h *Handler) GetPersonas(c *gin.Context) {
 		return
 	}
 
-	// Log response payload
-	fmt.Println("--- GetPersonas Response ---")
-	// Marshal the payload to JSON for proper logging
-	responsePayload, err := json.MarshalIndent(personas, "", "  ")
-	if err != nil {
-		fmt.Printf("Error marshalling response payload: %v\n", err)
-	} else {
-		fmt.Printf("Payload:\n%s\n", string(responsePayload))
-	}
-	fmt.Println("--------------------------")
+	
+	
 
 	c.JSON(http.StatusOK, personas)
 }
@@ -709,4 +670,23 @@ func (h *Handler) DeletePersona(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Persona deleted successfully"})
+}
+
+// GetIntents handles GET /intents
+func (h *Handler) GetIntents(c *gin.Context) {
+	// Assuming intent_master.json is in the same directory as the executable.
+	// For a more robust solution, you might want to pass the path via config.
+	intentsFile, err := os.ReadFile("intent_master.json")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not read intents file"})
+		return
+	}
+
+	var intents []models.Intent
+	if err := json.Unmarshal(intentsFile, &intents); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not parse intents file"})
+		return
+	}
+
+	c.JSON(http.StatusOK, intents)
 }

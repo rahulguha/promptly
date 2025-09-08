@@ -122,6 +122,9 @@ func RegisterRoutes(r *gin.Engine, handler *Handler) {
 		// Generate prompt from template
 		v1.POST("/generate-prompt", handler.GeneratePrompt)
 
+		// Intent routes
+		v1.GET("/intents", handler.GetIntents)
+
 		// Auth routes
 		auth := v1.Group("/api/auth")
 		{
