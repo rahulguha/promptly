@@ -17,6 +17,9 @@ type Config struct {
 	SessionSecret       string
 	Port                string
 	FrontendURL         string
+	DynamoDBRegion      string
+	DynamoDBTableName   string
+	DynamoDBActivityTableName string
 }
 
 // New loads configuration from environment variables and .env file.
@@ -38,6 +41,9 @@ func New() (*Config, error) {
 		SessionSecret:       viper.GetString("SESSION_SECRET"),
 		Port:                viper.GetString("PORT"),
 		FrontendURL:         viper.GetString("FRONTEND_URL"),
+		DynamoDBRegion:      viper.GetString("DYNAMODB_REGION"),
+		DynamoDBTableName:   viper.GetString("DYNAMODB_TABLE_NAME"),
+		DynamoDBActivityTableName: viper.GetString("DYNAMODB_ACTIVITY_TABLE_NAME"),
 	}
 
 	// --- Critical Debugging Step ---
@@ -47,6 +53,9 @@ func New() (*Config, error) {
 	fmt.Printf("COGNITO_CLIENT_ID: %s\n", cfg.CognitoClientID)
 	fmt.Printf("COGNITO_REDIRECT_URI: %s\n", cfg.CognitoRedirectURI)
 	fmt.Printf("PORT: %s\n", cfg.Port)
+	fmt.Printf("DYNAMODB_REGION: %s\n", cfg.DynamoDBRegion)
+	fmt.Printf("DYNAMODB_TABLE_NAME: %s\n", cfg.DynamoDBTableName)
+	fmt.Printf("DYNAMODB_ACTIVITY_TABLE_NAME: %s\n", cfg.DynamoDBActivityTableName)
 	fmt.Println("--------------------------")
 
 	if cfg.CognitoDomain == "" {
@@ -55,6 +64,13 @@ func New() (*Config, error) {
 	if cfg.SessionSecret == "" {
 		return nil, fmt.Errorf("FATAL: SESSION_SECRET is not set")
 	}
+	if cfg.DynamoDBTableName == "" {
+		return nil, fmt.Errorf("FATAL: DYNAMODB_TABLE_NAME is not set")
+	}
+	if cfg.DynamoDBActivityTableName == "" {
+		return nil, fmt.Errorf("FATAL: DYNAMODB_ACTIVITY_TABLE_NAME is not set")
+	}
 
 	return cfg, nil
 }
+

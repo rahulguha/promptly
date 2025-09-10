@@ -1,2 +1,5 @@
 port: 8082
 data: data/prompts.json
+dynamodb_region: us-east-1 # Example value, actual value from env var DYNAMODB_REGION
+dynamodb_table_name: Users # Example value, actual value from env var DYNAMODB_TABLE_NAME
+dynamodb_activity_table_name: ActivityLogs # Example value, actual value from env var DYNAMODB_ACTIVITY_TABLE_NAME

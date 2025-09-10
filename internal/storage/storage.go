@@ -24,7 +24,7 @@ type Storage interface {
 	DeleteTemplate(id uuid.UUID, version int) error
 
 	// Prompt operations
-	GetAll() ([]*models.Prompt, error)
+	GetAll(profileID string) ([]*models.Prompt, error)
 	GetByID(id uuid.UUID) (*models.Prompt, error)
 	Create(prompt *models.Prompt) (*models.Prompt, error)
 	Update(prompt *models.Prompt) (*models.Prompt, error)

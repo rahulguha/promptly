@@ -115,8 +115,8 @@ func RegisterRoutes(r *gin.Engine, handler *Handler) {
 			prompts.GET("", handler.GetPrompts)
 			prompts.GET("/:id", handler.GetPrompt)
 			prompts.POST("", handler.CreatePrompt)
-			prompts.PUT("/:id", handler.UpdatePrompt)
-			prompts.DELETE("/:id", handler.DeletePrompt)
+			prompts.PUT("", handler.UpdatePrompt)
+			prompts.DELETE("", handler.DeletePrompt)
 		}
 
 		// Generate prompt from template
@@ -124,6 +124,12 @@ func RegisterRoutes(r *gin.Engine, handler *Handler) {
 
 		// Intent routes
 		v1.GET("/intents", handler.GetIntents)
+
+		// User tracking route
+		v1.POST("/track/users", handler.UserTrackingHandler.TrackUser)
+
+		// Activity tracking route
+		v1.POST("/track/activity", handler.UserTrackingHandler.TrackActivity)
 
 		// Auth routes
 		auth := v1.Group("/api/auth")
@@ -143,6 +149,7 @@ func RegisterRoutes(r *gin.Engine, handler *Handler) {
 		})
 	})
 }
+
 
 // NewRouter creates a new Gin router and registers the routes
 func NewRouter(handler *Handler) *gin.Engine {

@@ -1,12 +1,15 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -106,16 +109,52 @@ func (h *APIHandler) Callback(c *gin.Context) {
 	fmt.Printf("ID Token claims: %+v\n", idToken)
 	// Store essential user info in the session
 	session.Set("user_id", idToken.Subject())
-	if email, ok := idToken.Get("email"); ok {
+
+	userID := idToken.Subject()
+	var email string
+	if e, ok := idToken.Get("email"); ok {
+		email = e.(string)
 		session.Set("email", email)
 	}
-	if name, ok := idToken.Get("name"); ok {
+	var name string
+	if n, ok := idToken.Get("name"); ok {
+		name = n.(string)
 		session.Set("name", name)
 	}
 	if picture, ok := idToken.Get("picture"); ok {
 		session.Set("picture", picture)
 	}
 	session.Set("authenticated", true)
+
+	// Get current timestamp in Unix milliseconds
+	timestamp := time.Now().UnixMilli()
+
+	// Call the user tracking API asynchronously
+	go func() {
+		trackURL := fmt.Sprintf("%s/v1/track/users", h.Cfg.FrontendURL) // Assuming FrontendURL is the base URL for the API
+		payload := map[string]interface{}{
+			"user_id":   userID,
+			"email":     email,
+			"name":      name,
+			"timestamp": timestamp,
+		}
+		jsonPayload, err := json.Marshal(payload)
+		if err != nil {
+			fmt.Printf("Error marshalling user tracking payload: %v\n", err)
+			return
+		}
+
+		resp, err := http.Post(trackURL, "application/json", bytes.NewBuffer(jsonPayload))
+		if err != nil {
+			fmt.Printf("Error calling user tracking API: %v\n", err)
+			return
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			fmt.Printf("User tracking API returned non-OK status: %d\n", resp.StatusCode)
+		}
+	}()
 
 	if err := session.Save(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save session", "details": err.Error()})

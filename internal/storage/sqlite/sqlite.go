@@ -457,12 +457,20 @@ func (s *SQLiteStorage) Create(prompt *models.Prompt) (*models.Prompt, error) {
 }
 
 
-func (s *SQLiteStorage) GetAll() ([]*models.Prompt, error) {
+func (s *SQLiteStorage) GetAll(profileID string) ([]*models.Prompt, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	query := `SELECT id, name, template_id, template_version, variable_values, content, profile_id FROM prompts ORDER BY created_at`
-	rows, err := s.db.Query(query)
+	query := `SELECT id, name, template_id, template_version, variable_values, content, profile_id FROM prompts`
+	args := []interface{}{}
+
+	if profileID != "" {
+		query += " WHERE profile_id = ?"
+		args = append(args, profileID)
+	}
+
+	query += " ORDER BY created_at"
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query prompts: %w", err)
 	}
@@ -472,16 +480,16 @@ func (s *SQLiteStorage) GetAll() ([]*models.Prompt, error) {
 	for rows.Next() {
 		var prompt models.Prompt
 		var idStr, templateIDStr, valuesJSON string
-		var profileID sql.NullString
-		err := rows.Scan(&idStr, &prompt.Name, &templateIDStr, &prompt.TemplateVersion, &valuesJSON, &prompt.Content, &profileID)
+		var dbProfileID sql.NullString
+		err := rows.Scan(&idStr, &prompt.Name, &templateIDStr, &prompt.TemplateVersion, &valuesJSON, &prompt.Content, &dbProfileID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan prompt: %w", err)
 		}
 
 		prompt.ID = uuid.MustParse(idStr)
 		prompt.TemplateID = uuid.MustParse(templateIDStr)
-		if profileID.Valid {
-			prompt.ProfileID = profileID.String
+		if dbProfileID.Valid {
+			prompt.ProfileID = dbProfileID.String
 		}
 
 		if err := json.Unmarshal([]byte(valuesJSON), &prompt.Values); err != nil {

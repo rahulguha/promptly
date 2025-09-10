@@ -7,9 +7,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/rahulguha/promptly/internal/api"
 	"github.com/rahulguha/promptly/internal/config"
 	"github.com/rahulguha/promptly/internal/routes"
 	"github.com/rahulguha/promptly/internal/storage"
+	"github.com/rahulguha/promptly/internal/tracking"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -89,8 +91,21 @@ func startServer() {
 	// Initialize the DB manager
 	dbManager := storage.NewDBManager()
 
-	// The handler now gets the DBManager instead of a specific storage instance
-	handler := &routes.Handler{DBManager: dbManager, Cfg: cfg}
+	// Initialize DynamoDB tracker
+	tracker, err := tracking.NewDynamoDBTracker(cfg.DynamoDBRegion, cfg.DynamoDBTableName, cfg.DynamoDBActivityTableName)
+	if err != nil {
+		log.Fatalf("Failed to initialize DynamoDB tracker: %v", err)
+	}
+
+	// Initialize UserTrackingHandler with the tracker
+	userTrackingHandler := api.NewUserTrackingHandler(tracker)
+
+	// The handler now gets the DBManager, Config, and UserTrackingHandler
+	handler := &routes.Handler{
+		DBManager:         dbManager,
+		Cfg:               cfg,
+		UserTrackingHandler: userTrackingHandler,
+	}
 
 	// Setup Gin router
 	r := gin.Default()

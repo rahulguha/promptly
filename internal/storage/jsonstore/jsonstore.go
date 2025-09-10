@@ -93,18 +93,21 @@ func (fs *FileStorage) save(prompts []models.Prompt) error {
 
 
 // Storage interface methods (for HTTP CRUD operations)
-func (fs *FileStorage) GetAll() ([]*models.Prompt, error) {
+func (fs *FileStorage) GetAll(profileID string) ([]*models.Prompt, error) {
 	prompts, err := fs.load()
 	if err != nil {
 		return nil, err
 	}
-	
-	// Convert []models.Prompt to []*models.Prompt
-	result := make([]*models.Prompt, len(prompts))
+
+	var filteredPrompts []*models.Prompt
 	for i := range prompts {
-		result[i] = &prompts[i]
+		if profileID != "" && prompts[i].ProfileID != profileID {
+			continue
+		}
+		filteredPrompts = append(filteredPrompts, &prompts[i])
 	}
-	return result, nil
+
+	return filteredPrompts, nil
 }
 
 func (fs *FileStorage) GetByID(id uuid.UUID) (*models.Prompt, error) {

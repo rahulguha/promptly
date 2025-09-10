@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/rahulguha/promptly/internal/api"
 	"github.com/rahulguha/promptly/internal/config"
 	"github.com/rahulguha/promptly/internal/models"
 	"github.com/rahulguha/promptly/internal/storage"
@@ -36,8 +37,9 @@ uniqueVars = append(uniqueVars, v)
 
 // Handler contains the dependencies for HTTP handlers
 type Handler struct {
-	DBManager *storage.DBManager
-	Cfg       *config.Config
+	DBManager         *storage.DBManager
+	Cfg               *config.Config
+	UserTrackingHandler *api.UserTrackingHandler
 }
 
 // GetPrompts handles GET /prompts
@@ -47,7 +49,8 @@ func (h *Handler) GetPrompts(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Storage not initialized"})
 		return
 	}
-	prompts, err := store.(storage.Storage).GetAll()
+	profileID := c.Query("profile_id")
+	prompts, err := store.(storage.Storage).GetAll(profileID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -463,9 +466,12 @@ func (h *Handler) DeleteTemplate(c *gin.Context) {
 
 // GeneratePromptRequest represents the request for generating a prompt
 type GeneratePromptRequest struct {
-	Name       string    `json:"name"`
-	Content    string    `json:"content" binding:"required"`
-	TemplateID uuid.UUID `json:"template_id"`
+	Name            string            `json:"name"`
+	Content         string            `json:"content" binding:"required"`
+	TemplateID      uuid.UUID         `json:"template_id"`
+	TemplateVersion int               `json:"template_version"`
+	Values          map[string]string `json:"variable_values"`
+	ProfileID       string            `json:"profile_id"`
 }
 
 // GeneratePrompt handles POST /generate-prompt
@@ -512,13 +518,12 @@ func (h *Handler) GeneratePrompt(c *gin.Context) {
 
 	// Create new prompt with rendered content
 	prompt := &models.Prompt{
-		Name:    req.Name,
-		Content: req.Content,
-		// Set default values for fields that are no longer generated,
-		// as they are required by the database schema.
+		Name:            req.Name,
+		Content:         req.Content,
 		TemplateID:      req.TemplateID,
-		TemplateVersion: 0,
-		Values:          make(map[string]string),
+		TemplateVersion: req.TemplateVersion,
+		Values:          req.Values,
+		ProfileID:       req.ProfileID,
 	}
 
 	createdPrompt, err := store.(storage.Storage).Create(prompt)
