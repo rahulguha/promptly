@@ -67,7 +67,7 @@ func TestFileStorage_GetAll(t *testing.T) {
 	storage.Create(prompt1)
 	storage.Create(prompt2)
 
-	prompts, err := storage.GetAll()
+	prompts, err := storage.GetAll("")
 	if err != nil {
 		t.Fatalf("Failed to get all prompts: %v", err)
 	}
@@ -175,7 +175,7 @@ func TestFileStorage_ConcurrentAccess(t *testing.T) {
 	wg.Wait()
 
 	// Verify all prompts were created
-	prompts, err := storage.GetAll()
+	prompts, err := storage.GetAll("")
 	if err != nil {
 		t.Fatalf("Failed to get all prompts: %v", err)
 	}

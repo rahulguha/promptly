@@ -50,11 +50,12 @@ func (m *MockDynamoDBClient) UpdateItem(input *dynamodb.UpdateItemInput) (*dynam
 }
 
 func TestNewDynamoDBTracker(t *testing.T) {
-	tracker, err := NewDynamoDBTracker("us-east-1", "test-table")
+	tracker, err := NewDynamoDBTracker("us-east-1", "test-users-table", "test-activity-table")
 	assert.NoError(t, err)
 	assert.NotNil(t, tracker)
 	assert.NotNil(t, tracker.db)
-	assert.Equal(t, "test-table", tracker.tableName)
+	assert.Equal(t, "test-users-table", tracker.tableName)
+	assert.Equal(t, "test-activity-table", tracker.activityTableName)
 }
 
 func TestUserExists(t *testing.T) {

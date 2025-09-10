@@ -225,7 +225,7 @@ func TestSQLiteStorage_Prompts(t *testing.T) {
 	}
 
 	// Test GetAll
-	prompts, err := storage.GetAll()
+	prompts, err := storage.GetAll("")
 	if err != nil {
 		t.Fatalf("Failed to get all prompts: %v", err)
 	}
