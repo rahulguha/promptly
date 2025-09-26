@@ -12,9 +12,48 @@ import (
 	"github.com/google/uuid"
 	"github.com/rahulguha/promptly/internal/api"
 	"github.com/rahulguha/promptly/internal/config"
+	"github.com/rahulguha/promptly/internal/llm"
 	"github.com/rahulguha/promptly/internal/models"
 	"github.com/rahulguha/promptly/internal/storage"
 )
+
+// NewHandler creates a new Handler
+func NewHandler(cfg *config.Config, dbManager *storage.DBManager, tracker *api.UserTrackingHandler, evaluator llm.Evaluator) *Handler {
+	return &Handler{
+		Cfg:               cfg,
+		DBManager:         dbManager,
+		UserTrackingHandler: tracker,
+		LLMEvaluator:      evaluator,
+	}
+}
+
+func (h *Handler) EvaluatePrompt(c *gin.Context) {
+	type evaluatePromptRequest struct {
+		Prompt string `json:"prompt" binding:"required"`
+	}
+
+	var req evaluatePromptRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request payload"})
+		return
+	}
+
+
+	inputGrade, suggestedPrompt, outputGrade, err := h.LLMEvaluator.Evaluate(c.Request.Context(), req.Prompt)
+
+	if err != nil {
+		// fmt.Println("Error during evaluation:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to evaluate prompt"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"inputGrade":       inputGrade,
+		"suggestedPrompt":  suggestedPrompt,
+		"outputGrade":      outputGrade,
+	})
+}
+
 
 func extractVariables(text string) []string {
 	re := regexp.MustCompile(`\{\{([a-zA-Z0-9_]+)\}\}`)
@@ -40,6 +79,7 @@ type Handler struct {
 	DBManager         *storage.DBManager
 	Cfg               *config.Config
 	UserTrackingHandler *api.UserTrackingHandler
+	LLMEvaluator      llm.Evaluator
 }
 
 // GetPrompts handles GET /prompts
@@ -209,13 +249,13 @@ func (h *Handler) GetTemplate(c *gin.Context) {
 	c.JSON(http.StatusOK, template)
 }
 // BuildMetaPrompt constructs a meta prompt given user and LLM roles
-func BuildMetaPrompt(userRole, llmRole string) string {
+func BuildMetaPrompt( llmRole, userRole string) string {
     return fmt.Sprintf(`
-I am a %s.
-You are a %s. 
+You are a %s.
+You are assisting a %s (the user). 
 Please respond clearly, in a way that fits my background as a %s, 
 while staying in your role as a %s.
-`, userRole, llmRole, userRole, llmRole)
+`, llmRole,userRole, userRole, llmRole)
 }
 
 func buildTemplate(metaRole, task, answerGuideline string) string {
@@ -266,7 +306,7 @@ func (h *Handler) CreateTemplate(c *gin.Context) {
 	}
 
 	// Prepend persona context with actual values
-	metaRole := BuildMetaPrompt(persona.UserRoleDisplay, persona.LLMRoleDisplay)
+	metaRole := BuildMetaPrompt( persona.LLMRoleDisplay, persona.UserRoleDisplay)
 	template.MetaRole = metaRole
 
 	template.Template = buildTemplate(template.MetaRole, template.Task, template.AnswerGuideline)
@@ -331,7 +371,7 @@ func (h *Handler) UpdateTemplate(c *gin.Context) {
 	}
 
 	// Prepend persona context with actual values
-	metaRole := BuildMetaPrompt(persona.UserRoleDisplay, persona.LLMRoleDisplay)
+	metaRole := BuildMetaPrompt(persona.LLMRoleDisplay, persona.UserRoleDisplay)
 	template.MetaRole = metaRole
 
 	template.Template = buildTemplate(template.MetaRole, template.Task, template.AnswerGuideline)

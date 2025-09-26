@@ -442,11 +442,6 @@ func (s *SQLiteStorage) Create(prompt *models.Prompt) (*models.Prompt, error) {
 
 	query := `INSERT INTO prompts (id, name, template_id, template_version, variable_values, content, profile_id) VALUES (?, ?, ?, ?, ?, ?, ?)`
 	
-	// Log the SQL statement
-	fmt.Println("--- SQL Statement ---")
-	fmt.Printf("Query: %s\n", query)
-	fmt.Printf("Args: %v\n", []interface{}{prompt.ID.String(), prompt.Name, prompt.TemplateID.String(), prompt.TemplateVersion, string(valuesJSON), prompt.Content, prompt.ProfileID})
-	fmt.Println("---------------------")
 
 	_, err = s.db.Exec(query, prompt.ID.String(), prompt.Name, prompt.TemplateID.String(), prompt.TemplateVersion, string(valuesJSON), prompt.Content, prompt.ProfileID)
 	if err != nil {

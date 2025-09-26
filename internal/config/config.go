@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -20,6 +21,13 @@ type Config struct {
 	DynamoDBRegion      string
 	DynamoDBTableName   string
 	DynamoDBActivityTableName string
+	LLMPrompts          *LLMPrompts
+}
+
+// LLMPrompts holds the system prompts for different LLM providers
+type LLMPrompts struct {
+	Claude string `json:"claude"`
+	OpenAI string `json:"openai"`
 }
 
 // New loads configuration from environment variables and .env file.
@@ -46,17 +54,6 @@ func New() (*Config, error) {
 		DynamoDBActivityTableName: viper.GetString("DYNAMODB_ACTIVITY_TABLE_NAME"),
 	}
 
-	// --- Critical Debugging Step ---
-	// Print out the loaded configuration to be 100% sure.
-	fmt.Println("--- Loaded Configuration ---")
-	fmt.Printf("COGNITO_DOMAIN: %s\n", cfg.CognitoDomain)
-	fmt.Printf("COGNITO_CLIENT_ID: %s\n", cfg.CognitoClientID)
-	fmt.Printf("COGNITO_REDIRECT_URI: %s\n", cfg.CognitoRedirectURI)
-	fmt.Printf("PORT: %s\n", cfg.Port)
-	fmt.Printf("DYNAMODB_REGION: %s\n", cfg.DynamoDBRegion)
-	fmt.Printf("DYNAMODB_TABLE_NAME: %s\n", cfg.DynamoDBTableName)
-	fmt.Printf("DYNAMODB_ACTIVITY_TABLE_NAME: %s\n", cfg.DynamoDBActivityTableName)
-	fmt.Println("--------------------------")
 
 	if cfg.CognitoDomain == "" {
 		return nil, fmt.Errorf("FATAL: COGNITO_DOMAIN is not set")
@@ -71,6 +68,29 @@ func New() (*Config, error) {
 		return nil, fmt.Errorf("FATAL: DYNAMODB_ACTIVITY_TABLE_NAME is not set")
 	}
 
+	// Load LLM prompts from llm_config.json
+	llmPrompts, err := loadLLMPrompts()
+	if err != nil {
+		return nil, fmt.Errorf("FATAL: Failed to load LLM prompts: %w", err)
+	}
+	cfg.LLMPrompts = llmPrompts
+
 	return cfg, nil
+}
+
+// loadLLMPrompts loads the LLM prompts from llm_config.json
+func loadLLMPrompts() (*LLMPrompts, error) {
+	data, err := os.ReadFile("llm_config.json")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read llm_config.json: %w", err)
+	}
+
+	var prompts LLMPrompts
+	err = json.Unmarshal(data, &prompts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal llm_config.json: %w", err)
+	}
+
+	return &prompts, nil
 }
 

@@ -32,7 +32,6 @@ func NewAPIHandler(cfg *config.Config) *APIHandler {
 
 // Login handles GET /auth/login
 func (h *APIHandler) Login(c *gin.Context) {
-	fmt.Println("Login handler called")
 	b := make([]byte, 32)
 	_, err := rand.Read(b)
 	if err != nil {
@@ -61,7 +60,6 @@ func (h *APIHandler) Login(c *gin.Context) {
 
 // Callback handles GET /auth/callback
 func (h *APIHandler) Callback(c *gin.Context) {
-	fmt.Println("Callback handler called")
 	session := sessions.Default(c)
 
 	expectedState := session.Get("state")
@@ -106,7 +104,6 @@ func (h *APIHandler) Callback(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse id_token", "details": err.Error()})
 		return
 	}
-	fmt.Printf("ID Token claims: %+v\n", idToken)
 	// Store essential user info in the session
 	session.Set("user_id", idToken.Subject())
 

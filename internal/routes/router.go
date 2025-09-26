@@ -115,8 +115,9 @@ func RegisterRoutes(r *gin.Engine, handler *Handler) {
 			prompts.GET("", handler.GetPrompts)
 			prompts.GET("/:id", handler.GetPrompt)
 			prompts.POST("", handler.CreatePrompt)
-			prompts.PUT("", handler.UpdatePrompt)
-			prompts.DELETE("", handler.DeletePrompt)
+			prompts.PUT("/:id", handler.UpdatePrompt)
+			prompts.DELETE("/:id", handler.DeletePrompt)
+			prompts.POST("/evaluate", handler.EvaluatePrompt)
 		}
 
 		// Generate prompt from template
