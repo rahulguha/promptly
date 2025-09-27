@@ -9,11 +9,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"github.com/lestrrat-go/jwx/v2/jwt"
+	"github.com/golang-jwt/jwt/v5"
+	cognito_jwt "github.com/lestrrat-go/jwx/v2/jwt"
 	"github.com/rahulguha/promptly/internal/config"
 	"golang.org/x/oauth2"
 )
@@ -23,9 +25,36 @@ type APIHandler struct {
 	Cfg *config.Config
 }
 
+// JWTClaims represents the claims in our JWT token
+type JWTClaims struct {
+	UserID  string `json:"user_id"`
+	Email   string `json:"email"`
+	Name    string `json:"name"`
+	Picture string `json:"picture"`
+	jwt.RegisteredClaims
+}
+
 // NewAPIHandler creates a new APIHandler.
 func NewAPIHandler(cfg *config.Config) *APIHandler {
 	return &APIHandler{Cfg: cfg}
+}
+
+// generateJWT creates a signed JWT token with user information
+func (h *APIHandler) generateJWT(userID, email, name, picture string) (string, error) {
+	claims := JWTClaims{
+		UserID:  userID,
+		Email:   email,
+		Name:    name,
+		Picture: picture,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)), // 24 hour expiry
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer:    "promptly-api",
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(h.Cfg.SessionSecret))
 }
 
 // Auth handlers
@@ -99,29 +128,30 @@ func (h *APIHandler) Callback(c *gin.Context) {
 	// NOTE: We are skipping signature validation here because we just received the token
 	// directly from Cognito over a secure channel. For a production environment, you
 	// should implement full validation of the token's signature and claims.
-	idToken, err := jwt.ParseString(idTokenRaw, jwt.WithVerify(false))
+	idToken, err := cognito_jwt.ParseString(idTokenRaw, cognito_jwt.WithVerify(false))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse id_token", "details": err.Error()})
 		return
 	}
-	// Store essential user info in the session
-	session.Set("user_id", idToken.Subject())
 
 	userID := idToken.Subject()
-	var email string
+	var email, name, picture string
 	if e, ok := idToken.Get("email"); ok {
 		email = e.(string)
-		session.Set("email", email)
 	}
-	var name string
 	if n, ok := idToken.Get("name"); ok {
 		name = n.(string)
-		session.Set("name", name)
 	}
-	if picture, ok := idToken.Get("picture"); ok {
-		session.Set("picture", picture)
+	if p, ok := idToken.Get("picture"); ok {
+		picture = p.(string)
 	}
-	session.Set("authenticated", true)
+
+	// Generate JWT token
+	jwtToken, err := h.generateJWT(userID, email, name, picture)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate JWT token", "details": err.Error()})
+		return
+	}
 
 	// Get current timestamp in Unix milliseconds
 	timestamp := time.Now().UnixMilli()
@@ -153,40 +183,59 @@ func (h *APIHandler) Callback(c *gin.Context) {
 		}
 	}()
 
-	if err := session.Save(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save session", "details": err.Error()})
-		return
-	}
-
-	c.Redirect(http.StatusTemporaryRedirect, h.Cfg.FrontendURL)
+	// Redirect to frontend with JWT token as URL parameter
+	redirectURL := fmt.Sprintf("%s/auth/success?token=%s", h.Cfg.FrontendURL, jwtToken)
+	c.Redirect(http.StatusTemporaryRedirect, redirectURL)
 }
 
 // GetMe handles GET /auth/me
 func (h *APIHandler) GetMe(c *gin.Context) {
-	session := sessions.Default(c)
-	authenticated := session.Get("authenticated")
+	// Extract JWT token from Authorization header
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
+		return
+	}
 
-	if authenticated == nil || !authenticated.(bool) {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+	// Check Bearer prefix
+	const bearerPrefix = "Bearer "
+	if !strings.HasPrefix(authHeader, bearerPrefix) {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid authorization header format"})
+		return
+	}
+
+	tokenString := authHeader[len(bearerPrefix):]
+
+	// Parse and validate JWT token
+	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(h.Cfg.SessionSecret), nil
+	})
+
+	if err != nil || !token.Valid {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
+		return
+	}
+
+	claims, ok := token.Claims.(*JWTClaims)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"user_id": session.Get("user_id"),
-		"email":   session.Get("email"),
-		"name":    session.Get("name"),
-		"picture":    session.Get("picture"),
+		"user_id": claims.UserID,
+		"email":   claims.Email,
+		"name":    claims.Name,
+		"picture": claims.Picture,
 	})
 }
 
 // Logout handles GET /auth/logout
 func (h *APIHandler) Logout(c *gin.Context) {
-	session := sessions.Default(c)
-	session.Clear()
-	session.Options(sessions.Options{MaxAge: -1}) // Expire the cookie immediately
-	if err := session.Save(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save session"})
-		return
-	}
+	// For JWT-based auth, logout is handled client-side by discarding the token
+	// Server-side logout would require token blacklisting, which we're not implementing here
 	c.JSON(http.StatusOK, gin.H{"message": "Successfully logged out"})
 }

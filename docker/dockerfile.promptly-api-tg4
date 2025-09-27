@@ -10,8 +10,11 @@ WORKDIR /app
 # Copy the pre-built binary
 COPY promptly-api-tg4 ./promptly-api-tg4
 
-# Copy config file
+# Copy config files
+COPY .env ./.env
 COPY config.yaml ./config.yaml
+COPY llm_config.json ./llm_config.json
+COPY intent_master.json ./intent_master.json
 
 # Create data directory for mounting
 RUN mkdir -p data
@@ -23,4 +26,4 @@ RUN chmod +x ./promptly-api-tg4
 EXPOSE 8082
 
 # Command to run the application
-CMD ["./promptly-api-tg4", "serve", "--storage=sqlite"]
+CMD ["./promptly-api-tg4", "serve", "--llm-provider=claude"]

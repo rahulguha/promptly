@@ -15,8 +15,9 @@ Promptly is a sophisticated prompt management application with both a Go backend
   - `internal/storage/jsonstore/` - JSON file-based storage
   - `internal/storage/sqlite/` - SQLite database storage (default)
   - `internal/storage/factory.go` - Storage abstraction layer
-- **API**: `internal/routes/` - RESTful handlers for all entities with session-based authentication
-- **Authentication**: `internal/api/` - OAuth-based authentication with Google
+- **API**: `internal/routes/` - RESTful handlers for all entities with JWT-based authentication
+- **Middleware**: `internal/middleware/` - JWT validation middleware for protected routes
+- **Authentication**: `internal/api/` - JWT-based authentication with AWS Cognito
 - **Tracking**: `internal/tracking/` - User activity tracking with AWS DynamoDB
 - **LLM Integration**: `internal/llm/` - Prompt evaluation with OpenAI and Claude APIs
 - **Configuration**: `internal/config/` - Viper-based configuration management
@@ -30,8 +31,9 @@ Promptly is a sophisticated prompt management application with both a Go backend
 
 ### Multi-Tenant Architecture
 - User-specific SQLite databases created per authenticated user
-- Session-based authentication with Google OAuth
-- DB middleware creates user-specific database connections
+- JWT-based authentication with AWS Cognito OAuth
+- JWT middleware validates tokens and extracts user context
+- DB middleware creates user-specific database connections from JWT context
 - Profile-based data isolation within user databases
 
 ## Development Commands
@@ -117,11 +119,22 @@ The backend exposes a versioned REST API at `/v1/` with these endpoints:
 - Auto-generation of UUIDs for new entities
 - Concurrent read/write protection via database transactions
 
-### Authentication & Sessions
-- Google OAuth integration for user authentication
-- Session-based state management with Gin sessions
-- CORS configured for frontend development (localhost:5175)
-- User-specific database connections via middleware
+### Authentication & JWT
+- AWS Cognito OAuth integration for user authentication
+- JWT-based state management with signed tokens (24-hour expiry)
+- Cross-domain authentication support for cloud/localhost setup
+- CORS configured for multiple origins (localhost:5175, promptlocker.app)
+- User-specific database connections via JWT middleware
+- Authorization header required: `Authorization: Bearer {jwt_token}`
+
+#### JWT Authentication Flow
+1. **Login**: Frontend calls `/v1/api/auth/login` → redirects to AWS Cognito
+2. **Cognito Auth**: User authenticates with Cognito → callback to API
+3. **Token Generation**: API exchanges auth code for Cognito tokens → generates signed JWT
+4. **Frontend Redirect**: API redirects to `{FRONTEND_URL}/auth/success?token={jwt}`
+5. **Token Storage**: Frontend extracts and stores JWT (localStorage/sessionStorage)
+6. **API Requests**: Frontend includes `Authorization: Bearer {jwt}` header
+7. **Token Validation**: JWT middleware validates token and sets user context
 
 ### LLM Integration
 - Pluggable evaluator interface supporting multiple providers
@@ -140,9 +153,12 @@ The backend exposes a versioned REST API at `/v1/` with these endpoints:
 ### Required Environment Variables
 - `OPENAI_API_KEY` - Required for OpenAI LLM evaluation
 - `ANTHROPIC_API_KEY` - Required for Claude LLM evaluation
-- `GOOGLE_CLIENT_ID` - Required for OAuth authentication
-- `GOOGLE_CLIENT_SECRET` - Required for OAuth authentication
-- `SESSION_SECRET` - Required for session encryption
+- `COGNITO_DOMAIN` - AWS Cognito domain for OAuth
+- `COGNITO_CLIENT_ID` - AWS Cognito client ID for OAuth
+- `COGNITO_CLIENT_SECRET` - AWS Cognito client secret for OAuth
+- `COGNITO_REDIRECT_URI` - Callback URL for Cognito (e.g., https://promptlocker.app/v1/api/auth/callback)
+- `SESSION_SECRET` - Secret key for JWT signing
+- `FRONTEND_URL` - Frontend URL for auth redirects (e.g., http://localhost:5175)
 
 ### DynamoDB Configuration (Optional)
 - `DYNAMODB_REGION` - AWS region for DynamoDB
@@ -159,10 +175,10 @@ The backend exposes a versioned REST API at `/v1/` with these endpoints:
 ## Dependencies
 
 ### Go Backend
-- **Web Framework**: Gin with CORS and session middleware
+- **Web Framework**: Gin with CORS and JWT middleware
 - **CLI**: Cobra with Viper configuration
 - **Database**: SQLite with modernc.org/sqlite driver
-- **Authentication**: OAuth2 with Google provider
+- **Authentication**: OAuth2 with AWS Cognito + JWT tokens (golang-jwt/jwt/v5)
 - **LLM APIs**: OpenAI and Anthropic SDKs
 - **AWS**: AWS SDK for DynamoDB tracking
 - **Testing**: Testify for unit tests
@@ -178,3 +194,4 @@ Do what has been asked; nothing more, nothing less.
 NEVER create files unless they're absolutely necessary for achieving your goal.
 ALWAYS prefer editing an existing file to creating a new one.
 NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
+- 1 can be permenant solution right ?

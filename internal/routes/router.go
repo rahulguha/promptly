@@ -9,6 +9,7 @@ import (
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/rahulguha/promptly/internal/api"
+	"github.com/rahulguha/promptly/internal/middleware"
 	"github.com/rahulguha/promptly/internal/storage"
 	"github.com/rahulguha/promptly/internal/storage/sqlite"
 )
@@ -16,14 +17,19 @@ import (
 // DBMiddleware creates a user-specific database connection and attaches it to the context.
 func DBMiddleware(dbManager *storage.DBManager) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		session := sessions.Default(c)
-		userID := session.Get("user_id")
-		email := session.Get("email")
-
-		if userID == nil || email == nil {
+		// Get user info from JWT context (set by JWT middleware)
+		userID, exists := c.Get("user_id")
+		if !exists {
 			// If the user is not authenticated, we can't create a DB connection.
-			// For public routes, this is fine. For protected routes, an auth middleware should run first.
+			// For public routes, this is fine. For protected routes, JWT middleware should run first.
 			c.Next()
+			return
+		}
+
+		email, emailExists := c.Get("email")
+		if !emailExists {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "User email not found in token"})
+			c.Abort()
 			return
 		}
 
@@ -69,7 +75,7 @@ func RegisterRoutes(r *gin.Engine, handler *Handler) {
 
 	// Configure CORS middleware
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5175"}, // Correct frontend origin
+		AllowOrigins:     []string{"http://localhost:5175", "https://promptlocker.app"}, // Allow both local and production frontends
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -79,66 +85,67 @@ func RegisterRoutes(r *gin.Engine, handler *Handler) {
 
 	// API v1 routes
 	v1 := r.Group("/v1")
-	v1.Use(DBMiddleware(handler.DBManager))
 	{
 		// Initialize the API handler with the config
 		apiHandler := api.NewAPIHandler(handler.Cfg)
 
-		// Profile routes
-		profileHandler := &ProfileHandler{}
-		RegisterProfileRoutes(v1, profileHandler)
-
-		// Persona routes
-		personas := v1.Group("/personas")
-		{
-			personas.GET("", handler.GetPersonas)
-			personas.GET("/:id", handler.GetPersona)
-			personas.POST("", handler.CreatePersona)
-			personas.PUT("/:id", handler.UpdatePersona)
-			personas.DELETE("/:id", handler.DeletePersona)
-		}
-
-		// Template routes
-		templates := v1.Group("/templates")
-		{
-			templates.GET("", handler.GetTemplates)
-			templates.GET("/:id", handler.GetTemplate)
-			templates.POST("", handler.CreateTemplate)
-			templates.PUT("/:id", handler.UpdateTemplate)
-			templates.POST("/:id/version", handler.CreateTemplateVersion)
-			templates.DELETE("/:id", handler.DeleteTemplate)
-		}
-
-		// Prompt routes
-		prompts := v1.Group("/prompts")
-		{
-			prompts.GET("", handler.GetPrompts)
-			prompts.GET("/:id", handler.GetPrompt)
-			prompts.POST("", handler.CreatePrompt)
-			prompts.PUT("/:id", handler.UpdatePrompt)
-			prompts.DELETE("/:id", handler.DeletePrompt)
-			prompts.POST("/evaluate", handler.EvaluatePrompt)
-		}
-
-		// Generate prompt from template
-		v1.POST("/generate-prompt", handler.GeneratePrompt)
-
-		// Intent routes
-		v1.GET("/intents", handler.GetIntents)
-
-		// User tracking route
-		v1.POST("/track/users", handler.UserTrackingHandler.TrackUser)
-
-		// Activity tracking route
-		v1.POST("/track/activity", handler.UserTrackingHandler.TrackActivity)
-
-		// Auth routes
+		// Auth routes (public)
 		auth := v1.Group("/api/auth")
 		{
 			auth.GET("/login", apiHandler.Login)
 			auth.GET("/callback", apiHandler.Callback)
 			auth.GET("/me", apiHandler.GetMe)
 			auth.GET("/logout", apiHandler.Logout)
+		}
+
+		// Health and public routes
+		v1.GET("/intents", handler.GetIntents)
+		v1.POST("/track/users", handler.UserTrackingHandler.TrackUser)
+		v1.POST("/track/activity", handler.UserTrackingHandler.TrackActivity)
+
+		// Protected routes (require JWT)
+		protected := v1.Group("")
+		protected.Use(middleware.JWTMiddleware(handler.Cfg))
+		protected.Use(DBMiddleware(handler.DBManager))
+		{
+			// Profile routes
+			profileHandler := &ProfileHandler{}
+			RegisterProfileRoutes(protected, profileHandler)
+
+			// Persona routes
+			personas := protected.Group("/personas")
+			{
+				personas.GET("", handler.GetPersonas)
+				personas.GET("/:id", handler.GetPersona)
+				personas.POST("", handler.CreatePersona)
+				personas.PUT("/:id", handler.UpdatePersona)
+				personas.DELETE("/:id", handler.DeletePersona)
+			}
+
+			// Template routes
+			templates := protected.Group("/templates")
+			{
+				templates.GET("", handler.GetTemplates)
+				templates.GET("/:id", handler.GetTemplate)
+				templates.POST("", handler.CreateTemplate)
+				templates.PUT("/:id", handler.UpdateTemplate)
+				templates.POST("/:id/version", handler.CreateTemplateVersion)
+				templates.DELETE("/:id", handler.DeleteTemplate)
+			}
+
+			// Prompt routes
+			prompts := protected.Group("/prompts")
+			{
+				prompts.GET("", handler.GetPrompts)
+				prompts.GET("/:id", handler.GetPrompt)
+				prompts.POST("", handler.CreatePrompt)
+				prompts.PUT("/:id", handler.UpdatePrompt)
+				prompts.DELETE("/:id", handler.DeletePrompt)
+				prompts.POST("/evaluate", handler.EvaluatePrompt)
+			}
+
+			// Generate prompt from template
+			protected.POST("/generate-prompt", handler.GeneratePrompt)
 		}
 	}
 
