@@ -53,6 +53,14 @@ docker/prompt_data*/
 docker-compose-non-public.yml
 docker/docker-compose-non-public.yml
 
+# SSL/TLS certificates and private keys
+*.pem
+*.key
+*.crt
+*.csr
+docker/*.pem
+docker/*.key
+
 # Configuration files with sensitive data
 config/production.yaml
 .env.production
