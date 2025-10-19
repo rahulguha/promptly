@@ -535,8 +535,9 @@ func (s *SQLiteStorage) Update(prompt *models.Prompt) (*models.Prompt, error) {
 		return nil, fmt.Errorf("failed to marshal values: %w", err)
 	}
 
-	query := `UPDATE prompts SET name = ?, template_id = ?, template_version = ?, variable_values = ?, content = ?, profile_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-	result, err := s.db.Exec(query, prompt.Name, prompt.TemplateID.String(), prompt.TemplateVersion, string(valuesJSON), prompt.Content, prompt.ProfileID, prompt.ID.String())
+	// query := `UPDATE prompts SET name = ?, template_id = ?, template_version = ?, variable_values = ?, content = ?, profile_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+	query := `UPDATE prompts SET name = ?, template_id = ?, template_version = ?, variable_values = ?, content = ?,  updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+	result, err := s.db.Exec(query, prompt.Name, prompt.TemplateID.String(), prompt.TemplateVersion, string(valuesJSON), prompt.Content,  prompt.ID.String())
 	if err != nil {
 		return nil, fmt.Errorf("failed to update prompt: %w", err)
 	}
